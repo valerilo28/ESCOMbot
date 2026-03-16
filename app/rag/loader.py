@@ -10,7 +10,8 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-#def load_documents():
+'''
+def load_documents():
     docs = []
 
     print("Buscando PDFs en:", PDF_DIR)
@@ -34,3 +35,4 @@ def clean_text(text):
 
     print(f"Documentos cargados: {len(docs)}")
     return docs
+'''
