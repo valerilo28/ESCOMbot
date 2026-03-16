@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+langchain
+langchain-community
+langchain-google-genai
+faiss-cpu
+rank-bm25
+pypdf
+pydantic
