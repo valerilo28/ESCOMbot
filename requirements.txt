@@ -8,3 +8,16 @@ faiss-cpu
 rank-bm25
 pypdf
 pydantic
+google.generativeai
+os
+path
+faiss
+basemodel
+list
+load_chain
+bm25retriever
+huggingfaceembeddings
+corsmiddleware
+recursivecharactertextsplitter
+re
+pypdfloader
