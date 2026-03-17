@@ -3,10 +3,12 @@ from pydantic import BaseModel
 from typing import List
 from app.rag.chain import load_chain
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
 
 app = FastAPI(title="Chatbot ESCOM - Gemini")
 
-chain = load_chain()
+#chain = load_chain()
+chain= None
 
 class ChatRequest(BaseModel):
     question: str
@@ -14,8 +16,16 @@ class ChatRequest(BaseModel):
 class SuggestionResponse(BaseModel):
     suggestions: List[str]
 
+@app.on_event("startup")
+async def startup_event():
+    global chain
+    loop = asyncio.get_event_loop()
+    chain = await loop.run_in_executor(None, load_chain)
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
+    if chain is None:
+        return {"answer": "El modelo aún se está cargando, intenta de nuevo en unos segundos."}
     response = chain(request.question)
     return {"answer": response}
 

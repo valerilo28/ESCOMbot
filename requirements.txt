@@ -12,3 +12,5 @@ rank-bm25
 pypdf
 pydantic
 sentence-transformers
+supabase
+asyncio
