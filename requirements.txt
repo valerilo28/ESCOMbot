@@ -13,5 +13,22 @@ rank-bm25
 pypdf
 pydantic
 supabase
-sentence-transformers==2.2.2
+
 torch==2.2.2+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+fastapi
+uvicorn
+python-multipart
+langchain
+langchain-community
+langchain-huggingface
+huggingface-hub
+faiss-cpu
+rank-bm25
+pypdf
+pydantic
+supabase
+
+torch==2.10.0+cpu
+sentence-transformers
