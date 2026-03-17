@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi import UploadFile
+from app.storage.supabase_client import supabase
 from pydantic import BaseModel
 from typing import List
 from app.rag.chain import load_chain
@@ -28,6 +30,18 @@ async def chat(request: ChatRequest):
         return {"answer": "El modelo aún se está cargando, intenta de nuevo en unos segundos."}
     response = chain(request.question)
     return {"answer": response}
+
+@app.post("/upload_pdf")
+async def upload_pdf(file: UploadFile):
+
+    content = await file.read()
+
+    supabase.storage.from_("pdfs").upload(
+        file.filename,
+        content
+    )
+
+    return {"message": "PDF subido correctamente"}
 
 @app.get("/suggestions")
 async def get_suggestions():
