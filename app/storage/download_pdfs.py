@@ -1,30 +1,23 @@
-from supabase import create_client
 import os
-from pathlib import Path
+from app.storage.supabase_client import supabase
 
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-PDF_DIR = BASE_DIR / "data" / "pdfs"
+DOWNLOAD_PATH = "app/data/pdfs"
 
 def download_pdfs():
-
-    os.makedirs(PDF_DIR, exist_ok=True)
+    os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
     files = supabase.storage.from_("pdfs").list()
 
     for file in files:
+        file_name = file["name"]
+        file_path = os.path.join(DOWNLOAD_PATH, file_name)
 
-        local_file = PDF_DIR / file["name"]
+        if not os.path.exists(file_path):
+            print(f"Descargando {file_name}...")
 
-        if not local_file.exists():
+            data = supabase.storage.from_("pdfs").download(file_name)
 
-            data = supabase.storage.from_("pdfs").download(file["name"])
-
-            with open(local_file, "wb") as f:
+            with open(file_path, "wb") as f:
                 f.write(data)
 
-            print(f"Descargado {file['name']}")
+    print("PDFs listos ✅")
