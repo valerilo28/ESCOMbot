@@ -8,6 +8,8 @@ def download_pdfs():
 
     files = supabase.storage.from_("pdfs").list()
 
+    print("Archivos en Supabase:", files)
+
     for file in files:
         file_name = file["name"]
         file_path = os.path.join(DOWNLOAD_PATH, file_name)
@@ -17,7 +19,8 @@ def download_pdfs():
 
             data = supabase.storage.from_("pdfs").download(file_name)
 
-            with open(file_path, "wb") as f:
-                f.write(data)
+            if not data:
+                print(f"❌ Error descargando {file_name}")
+            continue
 
-    print("PDFs listos ✅")
+    print(f"✅ Tamaño de {file_name}: {len(data)} bytes")

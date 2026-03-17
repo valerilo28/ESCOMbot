@@ -30,6 +30,7 @@ def load_documents():
         for page in pages:
 
             page.page_content = clean_text(page.page_content)
+            print(f"Texto página: {len(page.page_content)} caracteres")
             
         docs.extend(pages)
 
