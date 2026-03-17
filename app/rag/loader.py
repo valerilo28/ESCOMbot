@@ -10,7 +10,6 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
-'''
 def load_documents():
     docs = []
 
@@ -35,4 +34,3 @@ def load_documents():
 
     print(f"Documentos cargados: {len(docs)}")
     return docs
-'''
