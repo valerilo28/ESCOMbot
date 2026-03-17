@@ -1,3 +1,4 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 fastapi
 uvicorn
 python-multipart
@@ -10,4 +11,5 @@ rank-bm25
 pypdf
 pydantic
 supabase
-sentence-transformers
+sentence-transformers==2.2.2
+torch==2.2.2+cpu
