@@ -1,10 +1,11 @@
 import os
 from app.storage.supabase_client import supabase
+from pathlib import Path
 
-DOWNLOAD_PATH = "app/data/pdfs"
+DOWNLOAD_PATH = Path("app/data/pdfs")
 
 def download_pdfs():
-    os.makedirs(DOWNLOAD_PATH, exist_ok=True)
+    DOWNLOAD_PATH.mkdir(parents=True, exist_ok=True)
 
     files = supabase.storage.from_("pdfs").list(path="")
     print("FILES:", files)
