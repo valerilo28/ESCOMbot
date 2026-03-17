@@ -3,8 +3,6 @@ uvicorn
 python-multipart
 langchain
 langchain-community
-langchain-huggingface
-huggingface-hub
 langchain-google-genai
 google-generativeai
 faiss-cpu
