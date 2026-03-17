@@ -2,10 +2,10 @@ import google.generativeai as genai
 import os
 from pathlib import Path
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.retrievers import BM25Retriever
 from app.rag.loader import load_documents
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,8 +19,8 @@ genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 def load_chain():
     # --- EMBEDDINGS Y VECTORSTORE ---
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    embeddings = GoogleGenerativeAIEmbeddings(
+    model="models/embedding-001"
     )
 
     vectorstore = FAISS.load_local(
