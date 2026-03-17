@@ -12,6 +12,13 @@ app = FastAPI(title="Chatbot ESCOM - Gemini")
 #chain = load_chain()
 chain= None
 
+def get_chain():
+    global chain
+    if chain is None:
+        print("Cargando chain")
+        chain = load_chain()
+    return chain
+
 class ChatRequest(BaseModel):
     question: str
 
@@ -25,11 +32,18 @@ async def startup_event():
     chain = await loop.run_in_executor(None, load_chain)
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
-    if chain is None:
-        return {"answer": "El modelo aún se está cargando, intenta de nuevo en unos segundos."}
-    response = chain(request.question)
-    return {"answer": response}
+async def chat(request: dict):
+    try:
+        chain = get_chain()
+
+        question = request.get("question")
+
+        response = chain.invoke({"input": question})
+
+        return {"answer": response}
+
+    except Exception as e:
+        return {"error": str(e)}
 
 @app.post("/upload_pdf")
 async def upload_pdf(file: UploadFile):
