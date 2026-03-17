@@ -6,7 +6,7 @@ DOWNLOAD_PATH = "app/data/pdfs"
 def download_pdfs():
     os.makedirs(DOWNLOAD_PATH, exist_ok=True)
 
-    files = supabase.storage.from_("pdfs").list()
+    files = supabase.storage.from_("pdfs").list(path="")
 
     print("Archivos en Supabase:", files)
 
