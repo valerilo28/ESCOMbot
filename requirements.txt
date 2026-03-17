@@ -10,3 +10,4 @@ rank-bm25
 pypdf
 pydantic
 supabase
+sentence-transformers

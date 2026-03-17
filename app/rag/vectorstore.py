@@ -2,7 +2,7 @@ from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 import re
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,9 +58,9 @@ def build_vectorstore():
 
     print(f"Chunks generados: {len(docs)}")
 
-    embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/embedding-001"
-    )
+    embeddings = HuggingFaceEmbeddings(
+    model_name="sentence-transformers/all-MiniLM-L6-v2"
+)
 
     vectorstore = FAISS.from_documents(docs, embeddings)
 
