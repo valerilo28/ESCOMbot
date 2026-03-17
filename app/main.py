@@ -32,11 +32,11 @@ async def startup_event():
     chain = await loop.run_in_executor(None, load_chain)
 
 @app.post("/chat")
-async def chat(request: dict):
+async def chat(request: ChatRequest):
     try:
         chain = get_chain()
 
-        question = request.get("question")
+        question = request.question
 
         response = chain.invoke({"input": question})
 
