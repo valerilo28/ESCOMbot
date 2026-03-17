@@ -1,6 +1,7 @@
 from langchain_community.document_loaders import PyPDFLoader
 from pathlib import Path
 import re
+from app.storage.download_pdfs import download_pdfs
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # app/
 PDF_DIR = BASE_DIR / "data" / "pdfs"
@@ -11,6 +12,9 @@ def clean_text(text):
     return text.strip()
 
 def load_documents():
+
+    download_pdfs()
+
     docs = []
 
     print("Buscando PDFs en:", PDF_DIR)
