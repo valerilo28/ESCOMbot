@@ -38,7 +38,7 @@ async def chat(request: ChatRequest):
 
         question = request.question
 
-        response = chain.invoke({"input": question})
+        response = chain(question)
 
         return {"answer": response}
 
