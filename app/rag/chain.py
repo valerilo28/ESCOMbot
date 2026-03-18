@@ -41,7 +41,7 @@ def load_chain():
 
     # --- MODELO ---
     #model = genai.GenerativeModel("models/gemini-2.5-flash")
-    model = genai.GenerativeModel("models/gemini-3.1-flash-lite")
+    model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
 
     def chain(question: str):
         # 1. Búsqueda Semántica
