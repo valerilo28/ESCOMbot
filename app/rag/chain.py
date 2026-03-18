@@ -30,11 +30,8 @@ def load_chain():
         allow_dangerous_deserialization=True
     )
 
-    # El retriever de FAISS (Semántico)
     faiss_retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
 
-    # --- RETRIEVER DE PALABRAS CLAVE (BM25) ---
-    # Cargamos los documentos para tener el texto plano
     documents = load_documents()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     docs_for_bm25 = splitter.split_documents(documents)
@@ -43,7 +40,8 @@ def load_chain():
     bm25_retriever.k = 3
 
     # --- MODELO ---
-    model = genai.GenerativeModel("models/gemini-2.5-flash")
+    #model = genai.GenerativeModel("models/gemini-2.5-flash")
+    model = genai.GenerativeModel("models/gemini-3.1-flash-lite")
 
     def chain(question: str):
         # 1. Búsqueda Semántica
@@ -52,10 +50,8 @@ def load_chain():
         # 2. Búsqueda por Palabras Clave
         docs_bm25 = bm25_retriever.invoke(question)
         
-        # 3. COMBINACIÓN MANUAL (Sin EnsembleRetriever)
         all_docs = docs_faiss + docs_bm25
         
-        # Eliminar duplicados exactos
         unique_contents = set()
         final_docs = []
         for d in all_docs:
@@ -63,11 +59,9 @@ def load_chain():
                 final_docs.append(d)
                 unique_contents.add(d.page_content)
 
-        # LOGGING: Vital para depurar en la terminal
         print(f"\n[LOG] Pregunta: {question}")
         print(f"[LOG] Híbrido: FAISS ({len(docs_faiss)}) + BM25 ({len(docs_bm25)}) -> Total Únicos: {len(final_docs)}")
         
-        # 4. Crear el contexto
         context = "\n".join(d.page_content for d in final_docs)
 
         prompt = f"""
