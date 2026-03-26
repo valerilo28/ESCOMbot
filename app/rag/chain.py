@@ -111,9 +111,11 @@ Pregunta:
 {question}
 
 Reglas:
-- Usa el contexto
-- Mantén coherencia con historial
-- No inventes
+- Usa el contexto, sin mencionar que estás contestando bajo un contexto.
+- Responde de forma natural, que no se vea tan robotizado si armado.
+- Trata de dar respuestas cortas y concisas, que respondan claramente lo que se te está preguntando.
+- Mantén coherencia con historial, es decir, trata de recordar lo que se te fue preguntando anteriormente para que sepas de lo que se te está preguntando.
+- No inventes cosas fuera de contexto.
 """
 
         response = model.generate_content(prompt)
