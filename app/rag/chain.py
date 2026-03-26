@@ -6,19 +6,37 @@ from langchain_community.retrievers import BM25Retriever
 from app.rag.loader import load_documents
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-
+import time
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-print(BASE_DIR)
 
 PDF_DIR = BASE_DIR / "data" / "pdfs"
 FAISS_DIR = BASE_DIR / "data" / "faiss"
 
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
+last_call_time = 0
+
+def can_call_model():
+    global last_call_time
+    now = time.time()
+
+    if now - last_call_time < 2:
+        return False
+
+    last_call_time = now
+    return True
+
+
+def is_good_context(docs):
+    if not docs:
+        return False
+
+    total_length = sum(len(d.page_content) for d in docs)
+    return total_length > 500
+
+
 def load_chain():
-    # --- EMBEDDINGS Y VECTORSTORE ---
 
     embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -30,28 +48,31 @@ def load_chain():
         allow_dangerous_deserialization=True
     )
 
-    faiss_retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+    faiss_retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
 
     documents = load_documents()
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
     docs_for_bm25 = splitter.split_documents(documents)
-    
-    bm25_retriever = BM25Retriever.from_documents(docs_for_bm25)
-    bm25_retriever.k = 3
 
-    # --- MODELO ---
-    #model = genai.GenerativeModel("models/gemini-2.5-flash")
+    bm25_retriever = BM25Retriever.from_documents(docs_for_bm25)
+    bm25_retriever.k = 2
+
     model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
 
+    cache = {}
+    chat_history = []
+
     def chain(question: str):
-        # 1. Búsqueda Semántica
+
+        if question in cache:
+            print("[LOG] Cache hit")
+            return cache[question]
+
         docs_faiss = faiss_retriever.invoke(question)
-        
-        # 2. Búsqueda por Palabras Clave
         docs_bm25 = bm25_retriever.invoke(question)
-        
+
         all_docs = docs_faiss + docs_bm25
-        
+
         unique_contents = set()
         final_docs = []
         for d in all_docs:
@@ -59,29 +80,48 @@ def load_chain():
                 final_docs.append(d)
                 unique_contents.add(d.page_content)
 
-        print(f"\n[LOG] Pregunta: {question}")
-        print(f"[LOG] Híbrido: FAISS ({len(docs_faiss)}) + BM25 ({len(docs_bm25)}) -> Total Únicos: {len(final_docs)}")
-        
-        context = "\n".join(d.page_content for d in final_docs)
+        context = "\n".join(d.page_content for d in final_docs[:2])
+
+        if is_good_context(final_docs):
+            print("[LOG] Sin IA")
+            answer = f"Según documentos oficiales:\n\n{context[:1000]}"
+            chat_history.append((question, answer))
+            cache[question] = answer
+            return answer
+
+        if not can_call_model():
+            return "Espera un momento antes de hacer otra pregunta"
+
+        print("[LOG] Usando Gemini")
+
+        history_text = "\n".join(
+            [f"Usuario: {q}\nBot: {a}" for q, a in chat_history[-3:]]
+        )
 
         prompt = f"""
-Eres un asistente oficial de la Escuela Superior de Cómputo (ESCOM) del IPN.
+Eres un asistente oficial de ESCOM IPN.
 
-Reglas estrictas:
-- Responde únicamente con la información proporcionada en el contexto.
-- No inventes información.
-- Si el contexto no contiene la respuesta solicitada, responde exactamente:
-- Si la respuesta no está en el contexto, responde:
-  "No se encontró información oficial de ESCOM sobre esa pregunta."
+Historial:
+{history_text}
 
 Contexto:
 {context}
 
 Pregunta:
 {question}
+
+Reglas:
+- Usa el contexto
+- Mantén coherencia con historial
+- No inventes
 """
 
         response = model.generate_content(prompt)
-        return response.text
+        answer = response.text
+
+        chat_history.append((question, answer))
+        cache[question] = answer
+
+        return answer
 
     return chain
