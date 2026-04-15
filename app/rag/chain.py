@@ -57,7 +57,7 @@ def load_chain():
     bm25_retriever = BM25Retriever.from_documents(docs_for_bm25)
     bm25_retriever.k = 2
 
-    model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     cache = {}
     chat_history = []
