@@ -35,6 +35,11 @@ def is_good_context(docs):
     total_length = sum(len(d.page_content) for d in docs)
     return total_length > 500
 
+def format_text(text):
+    text = text.replace("  ", "\n")
+    text = text.replace(". ", ".\n\n")
+    text = text.replace("•", "\n•")
+    return text.strip()
 
 def load_chain():
 
@@ -57,7 +62,7 @@ def load_chain():
     bm25_retriever = BM25Retriever.from_documents(docs_for_bm25)
     bm25_retriever.k = 2
 
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-3.1-flash-lite-preview")
 
     cache = {}
     chat_history = []
@@ -82,9 +87,10 @@ def load_chain():
 
         context = "\n".join(d.page_content for d in final_docs[:2])
 
+
         if is_good_context(final_docs):
             print("[LOG] Sin IA")
-            answer = f"Según documentos oficiales:\n\n{context[:1000]}"
+            answer = format_text(context[:1000])
             chat_history.append((question, answer))
             cache[question] = answer
             return answer

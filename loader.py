@@ -8,7 +8,7 @@ PDF_DIR = BASE_DIR / "data" / "pdfs"
 
 def clean_text(text):
     text = re.sub(r'(?<=[a-zA-ZáéíóúÁÉÍÓÚ]) (?=[a-zA-ZáéíóúÁÉÍÓÚ] )', '', text)
-    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'\n+', '\n', text)
     return text.strip()
 
 def load_documents():
