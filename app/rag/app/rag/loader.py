@@ -7,10 +7,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # app/
 PDF_DIR = BASE_DIR / "data" / "pdfs"
 
 def clean_text(text):
-    #text = re.sub(r'(?<=[a-zA-ZáéíóúÁÉÍÓÚ]) (?=[a-zA-ZáéíóúÁÉÍÓÚ] )', '', text)
-    text = re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', text)
-    text = re.sub(r'(?<![.:!?;])\n(?=[a-z])', ' ', text)
-    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r'(?<=[a-zA-ZáéíóúÁÉÍÓÚ]) (?=[a-zA-ZáéíóúÁÉÍÓÚ] )', '', text)
+    text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
 def load_documents():

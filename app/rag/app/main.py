@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi import UploadFile
-#from app.storage.supabase_client import supabase
+from app.storage.supabase_client import supabase
 from pydantic import BaseModel
 from typing import List
 from app.rag.chain import load_chain
@@ -19,13 +19,8 @@ def get_chain():
         chain = load_chain()
     return chain
 
-class HistoryItem(BaseModel):
-    user: str
-    bot: str
-
 class ChatRequest(BaseModel):
     question: str
-    history: List[HistoryItem] = []
 
 class SuggestionResponse(BaseModel):
     suggestions: List[str]
@@ -67,8 +62,8 @@ async def get_suggestions():
     return {
         "suggestions": [
             "¿Cómo solicito una beca?",
-            "Requisitos Servicio Social",
-            "Estancia Profesional",
+            "Requisitos para dictamen de electivas",
+            "¿Cómo bajarme de una materia?",
             "Liberación de servicio social"
         ]
     }

@@ -35,11 +35,6 @@ def is_good_context(docs):
     total_length = sum(len(d.page_content) for d in docs)
     return total_length > 500
 
-def format_text(text):
-    text = text.replace("  ", "\n")
-    text = text.replace(". ", ".\n\n")
-    text = text.replace("•", "\n•")
-    return text.strip()
 
 def load_chain():
 
@@ -62,12 +57,12 @@ def load_chain():
     bm25_retriever = BM25Retriever.from_documents(docs_for_bm25)
     bm25_retriever.k = 2
 
-    model = genai.GenerativeModel("gemini-2.5-flash")
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
     cache = {}
     chat_history = []
 
-    def chain(question: str, history_from_app: list = None):
+    def chain(question: str):
 
         if question in cache:
             print("[LOG] Cache hit")
@@ -87,10 +82,9 @@ def load_chain():
 
         context = "\n".join(d.page_content for d in final_docs[:2])
 
-
         if is_good_context(final_docs):
             print("[LOG] Sin IA")
-            answer = format_text(context[:1000])
+            answer = f"Según documentos oficiales:\n\n{context[:1000]}"
             chat_history.append((question, answer))
             cache[question] = answer
             return answer
@@ -103,12 +97,6 @@ def load_chain():
         history_text = "\n".join(
             [f"Usuario: {q}\nBot: {a}" for q, a in chat_history[-3:]]
         )
-
-        history_text = ""
-        if history_from_app:
-            history_text = "\n".join(
-                [f"Usuario: {h['user']}\nBot: {h['bot']}" for h in history_from_app[-3:]]
-            )
 
         prompt = f"""
 Eres un asistente oficial de ESCOM IPN.
@@ -123,31 +111,11 @@ Pregunta:
 {question}
 
 Reglas:
-- Usa el contexto, sin mencionar que estás contestando bajo un contexto o que menciones docuemntos oficiales, trata de que sea una respuesta natural.
-- Responde de forma natural, que no se vea tan robotizado ni armado.
-- Responde con formato claro y legible, usa salto de línea, usa listas cuando sea necesario y títulos cortos si aplica.
+- Usa el contexto, sin mencionar que estás contestando bajo un contexto.
+- Responde de forma natural, que no se vea tan robotizado si armado.
 - Trata de dar respuestas cortas y concisas, que respondan claramente lo que se te está preguntando.
 - Mantén coherencia con historial, es decir, trata de recordar lo que se te fue preguntando anteriormente para que sepas de lo que se te está preguntando.
 - No inventes cosas fuera de contexto.
-
-Formato de respuesta:
-
-El contexto puede venir sin saltos de línea. Tu trabajo es REESTRUCTURAR la información:
-- Si detectas una lista (ej. 1. Requisito, 2. Requisito), escríbela con saltos de línea y viñetas.
-- Usa "doble salto de línea" entre cada sección o párrafo.
-- Si ves un correo electrónico (como servicio_social_escom@ipn.mx), ponlo en una línea sola para que sea fácil de ver.
-- Usa párrafos separados
-- Usa viñetas con "-" si hay pasos o requisitos
-- No pongas todo en un soslo bloque
-
-Ejemplo:
-Requisitos:
-- Documento 1
-- Documento 2
-
-Explicación:
-Texto aquí...
-
 """
 
         response = model.generate_content(prompt)
