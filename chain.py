@@ -67,7 +67,7 @@ def load_chain():
     cache = {}
     chat_history = []
 
-    def chain(question: str):
+    def chain(question: str, history_from_app: list = None):
 
         if question in cache:
             print("[LOG] Cache hit")
@@ -103,6 +103,12 @@ def load_chain():
         history_text = "\n".join(
             [f"Usuario: {q}\nBot: {a}" for q, a in chat_history[-3:]]
         )
+
+        history_text = ""
+        if history_from_app:
+            history_text = "\n".join(
+                [f"Usuario: {h['user']}\nBot: {h['bot']}" for h in history_from_app[-3:]]
+            )
 
         prompt = f"""
 Eres un asistente oficial de ESCOM IPN.
