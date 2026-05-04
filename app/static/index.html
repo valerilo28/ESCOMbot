@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Control - ESCOMbot</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f0f2f5; display: flex; justify-content: center; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        h2 { color: #003972; text-align: center; margin-bottom: 25px; border-bottom: 2px solid #003972; padding-bottom: 10px; }
+        label { font-weight: bold; display: block; margin-top: 15px; color: #333; }
+        select, input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .flex-row { display: flex; gap: 10px; }
+        button { 
+            background: #003972; color: white; border: none; padding: 14px; 
+            border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; 
+            font-weight: bold; margin-top: 20px; transition: background 0.3s;
+        }
+        button:hover { background: #0056ac; }
+        #msg { text-align: center; margin-top: 15px; font-weight: bold; }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Panel Administrativo</h2>
+        <form id="uploadForm">
+            <label>1. Seleccionar Documento (PDF):</label>
+            <input type="file" id="fileInput" accept=".pdf" required>
+
+            <label>2. Clasificación (Categoría):</label>
+            <select id="category">
+                <option value="becas">Becas</option>
+                <option value="servicio_social">Servicio Social</option>
+                <option value="estancia_profesional">Estancia Profesional</option>
+                <option value="general">General / Trámites</option>
+            </select>
+
+            <label>3. Periodo Escolar:</label>
+            <div class="flex-row">
+                <input type="number" id="year" value="2026" placeholder="Año">
+                <select id="semester">
+                    <option value="1">Semestre 1</option>
+                    <option value="2">Semestre 2</option>
+                </select>
+            </div>
+
+            <button type="submit" id="submitBtn">Subir y Clasificar</button>
+        </form>
+        <p id="msg"></p>
+    </div>
+
+    <script>
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('msg');
+            const btn = document.getElementById('submitBtn');
+            
+            // Feedback visual
+            msg.innerText = "Subiendo archivo...";
+            msg.className = "";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            const file = document.getElementById('fileInput').files[0];
+            const category = document.getElementById('category').value;
+            const year = document.getElementById('year').value;
+            const semester = document.getElementById('semester').value;
+
+            // Enviamos los datos por separado y el archivo
+            // FastAPI se encargará de juntarlos si es necesario
+            formData.append('file', file);
+            formData.append('category', category);
+            formData.append('year', year);
+            formData.append('semester', semester);
+
+            try {
+                const res = await fetch('/upload_pdf', { 
+                    method: 'POST', 
+                    body: formData 
+                });
+                
+                const data = await res.json();
+                
+                if (res.ok) {
+                    msg.innerText = "listo " + (data.message || "Archivo subido con éxito");
+                    msg.className = "success";
+                    document.getElementById('uploadForm').reset(); // Limpiar formulario
+                } else {
+                    msg.innerText = "Error: " + (data.error || "No se pudo subir");
+                    msg.className = "error";
+                }
+            } catch (err) {
+                msg.innerText = "Error de conexión con el servidor";
+                msg.className = "error";
+            } finally {
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>

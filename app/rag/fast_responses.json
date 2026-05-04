@@ -1,0 +1,14 @@
+[
+  {
+    "keywords": ["gestion escolar", "control escolar"],
+    "answer": "**Gestión Escolar** se encuentra en el edificio principal o de gobierno de ESCOM."
+  },
+  {
+    "keywords": ["telefono", "contacto"],
+    "answer": "Puedes contactar a ESCOM en control escolar o en su sitio oficial."
+  },
+  {
+    "keywords": ["horario"],
+    "answer": "Los horarios dependen del área, consulta directamente en ventanilla."
+  }
+]

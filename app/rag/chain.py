@@ -1,161 +1,185 @@
-import google.generativeai as genai
 import os
-from pathlib import Path
-from langchain_community.vectorstores import FAISS
-from langchain_community.retrievers import BM25Retriever
-from app.rag.loader import load_documents
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
 import time
+import datetime
+from pathlib import Path
+from langchain_community.chat_models import ChatOllama
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+import json
+import re
 
+# Importamos tu cargador de documentos
+try:
+    from app.rag.loader import load_documents
+except ImportError:
+    from rag.loader import load_documents
+
+# Rutas de carpetas
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-PDF_DIR = BASE_DIR / "data" / "pdfs"
 FAISS_DIR = BASE_DIR / "data" / "faiss"
+FAST_RESPONSES_PATH = BASE_DIR / "rag" / "fast_responses.json"
 
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+with open(FAST_RESPONSES_PATH, "r", encoding="utf-8") as f:
+    FAST_RESPONSES = json.load(f)
+
+# --- LÓGICA DE CONTROL ---
 
 last_call_time = 0
+
+def fast_response(question: str):
+    q = question.lower()
+
+    for item in FAST_RESPONSES:
+        for keyword in item["keywords"]:
+            if keyword in q:
+                return item["answer"]
+
+    return None
+
+def fix_incomplete_answer(answer: str):
+    answer = answer.strip()
+
+    if not answer.endswith((".", "!", "?")):
+        # intenta cortar hasta la última oración completa
+        sentences = re.split(r'(?<=[.!?]) +', answer)
+        if len(sentences) > 1:
+            return " ".join(sentences[:-1])
+        return answer + "..."
+
+    return answer
 
 def can_call_model():
     global last_call_time
     now = time.time()
-
-    if now - last_call_time < 2:
+    if now - last_call_time < 1:
         return False
-
     last_call_time = now
     return True
 
+def get_current_period():
+    now = datetime.datetime.now()
+    # Semestre 2: Febrero a Julio, Semestre 1: Agosto a Enero
+    semester = "2" if 2 <= now.month <= 7 else "1"
+    return f"{now.year}-{semester}"
 
-def is_good_context(docs):
-    if not docs:
-        return False
 
-    total_length = sum(len(d.page_content) for d in docs)
-    return total_length > 500
-
-def format_text(text):
-    text = text.replace("  ", "\n")
-    text = text.replace(". ", ".\n\n")
-    text = text.replace("•", "\n•")
-    return text.strip()
+# --- CARGA DE LA CADENA ---
 
 def load_chain():
+    # 1. Configurar Embeddings (Deben ser los mismos que usaste al crear el índice)
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    
+    # 2. Cargar base de datos vectorial FAISS
+    try:
+        vectorstore = FAISS.load_local(
+            str(FAISS_DIR),
+            embeddings,
+            allow_dangerous_deserialization=True
+        )
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+        print("Base de datos FAISS cargada correctamente.")
+    except Exception as e:
+        print(f"Error cargando FAISS: {e}")
+        return None
 
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    # 3. Configurar el modelo Gemini vía LangChain (v1beta para evitar el 404)
+    llm = ChatOllama(
+    #model="llama3",
+    model="mistral",
+    temperature=0.1,
+    num_predict=300
     )
-
-    vectorstore = FAISS.load_local(
-        str(FAISS_DIR),
-        embeddings,
-        allow_dangerous_deserialization=True
-    )
-
-    faiss_retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
-
-    documents = load_documents()
-    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    docs_for_bm25 = splitter.split_documents(documents)
-
-    bm25_retriever = BM25Retriever.from_documents(docs_for_bm25)
-    bm25_retriever.k = 2
-
-    model = genai.GenerativeModel("gemini-2.5-flash")
-
+    
     cache = {}
-    chat_history = []
 
+    
+
+    # --- FUNCIÓN INTERNA DE PROCESAMIENTO ---
+    
     def chain(question: str, history_from_app: list = None):
+        if not can_call_model():
+            return "Por favor, espera un momento..."
 
-        if question in cache:
-            print("[LOG] Cache hit")
-            return cache[question]
+        def normalize(q):
+            return q.lower().strip()
 
-        docs_faiss = faiss_retriever.invoke(question)
-        docs_bm25 = bm25_retriever.invoke(question)
+        if normalize(question) in cache:
+            return cache[normalize(question)]
+        
+        fast = fast_response(question)
+        if fast:
+            return fast
 
-        all_docs = docs_faiss + docs_bm25
+        try:
+            fecha_actual = datetime.datetime.now().strftime("%B %Y")
+            periodo_actual = get_current_period()
+        # A. Recuperación de documentos
+            docs = retriever.invoke(question)
+            
+            context_docs = docs
 
-        unique_contents = set()
-        final_docs = []
-        for d in all_docs:
-            if d.page_content not in unique_contents:
-                final_docs.append(d)
-                unique_contents.add(d.page_content)
+            def classify_question(question):
+                q = question.lower()
 
-        context = "\n".join(d.page_content for d in final_docs[:2])
+                if "beca" in q:
+                    return "becas"
+                elif "servicio" in q:
+                    return "servicio_social"
+                elif "estancia" in q:
+                    return "estancia_profesional"
 
+                return "general"
 
-        if is_good_context(final_docs):
-            print("[LOG] Sin IA")
-            answer = format_text(context[:1000])
-            chat_history.append((question, answer))
-            cache[question] = answer
+            # B. Filtrado por Categoría (usando el nombre del archivo en metadata)
+            category_filter =  classify_question(question)
+            q_lower = question.lower()
+            if "beca" in q_lower: category_filter = "becas"
+            elif "servicio" in q_lower: category_filter = "servicio_social"
+            elif "estancia" in q_lower: category_filter = "estancia_profesional"
+
+            if category_filter:
+                filtered = [d for d in docs if category_filter in d.metadata.get('source', '').lower()]
+                if filtered: 
+                    context_docs = filtered
+
+            context_text = "\n---\n".join(d.page_content for d in context_docs[:2])
+
+            # C. Historial
+            history_text = ""
+            if history_from_app:
+                history_text = "\n".join([f"Usuario: {h['user']}\nBot: {h['bot']}" for h in history_from_app[-3:]])
+
+            # E. Prompt Maestro
+            prompt = f"""Eres el Asistente Oficial de la ESCOM IPN.
+
+            Hoy es {fecha_actual} y el ciclo escolar es {periodo_actual}.
+
+        INSTRUCCIONES DE RESPUESTA:
+        1. **FILTRO DE VIGENCIA**: Si la información proviene de un documento con un periodo distinto a {periodo_actual} (ej. 2025-1, 2025-2), debes iniciar tu respuesta con: "Nota: Esta información corresponde al periodo [Periodo del archivo] y es solo para referencia."
+        2. **FIDELIDAD AL CONTEXTO**: Responde UNICAMENTE con la información proporcionada en el contexto. Si no está ahí, di: "No cuento con esa información específica, te sugiero preguntar en Gestión Escolar."
+        3. **FORMATO**: Responde en un máximo de 5 puntos claros. Usa **negritas** para resaltar requisitos o fechas y viñetas para organizar.
+        4. **ESTRUCTURA**: Asegúrate de cerrar todas las ideas. No dejes listas ni frases incompletas.
+        5. **TONO**: Sé amable, profesional y directo. No menciones "según el PDF" o "en el texto proporcionado".
+
+    CONTEXTO DE LOS DOCUMENTOS:
+    {context_text}
+
+    HISTORIAL DE CONVERSACIÓN:
+    {history_text}
+
+    PREGUNTA DEL ALUMNO:
+    {question}
+    """
+# E. Ejecución
+            response = llm.invoke(prompt)
+            answer = fix_incomplete_answer(response.content)
+
+            cache[normalize(question)] = answer
             return answer
 
-        if not can_call_model():
-            return "Espera un momento antes de hacer otra pregunta"
-
-        print("[LOG] Usando Gemini")
-
-        history_text = "\n".join(
-            [f"Usuario: {q}\nBot: {a}" for q, a in chat_history[-3:]]
-        )
-
-        history_text = ""
-        if history_from_app:
-            history_text = "\n".join(
-                [f"Usuario: {h['user']}\nBot: {h['bot']}" for h in history_from_app[-3:]]
-            )
-
-        prompt = f"""
-Eres un asistente oficial de ESCOM IPN.
-
-Historial:
-{history_text}
-
-Contexto:
-{context}
-
-Pregunta:
-{question}
-
-Reglas:
-- Usa el contexto, sin mencionar que estás contestando bajo un contexto o que menciones docuemntos oficiales, trata de que sea una respuesta natural.
-- Responde de forma natural, que no se vea tan robotizado ni armado.
-- Responde con formato claro y legible, usa salto de línea, usa listas cuando sea necesario y títulos cortos si aplica.
-- Trata de dar respuestas cortas y concisas, que respondan claramente lo que se te está preguntando.
-- Mantén coherencia con historial, es decir, trata de recordar lo que se te fue preguntando anteriormente para que sepas de lo que se te está preguntando.
-- No inventes cosas fuera de contexto.
-
-Formato de respuesta:
-
-El contexto puede venir sin saltos de línea. Tu trabajo es REESTRUCTURAR la información:
-- Si detectas una lista (ej. 1. Requisito, 2. Requisito), escríbela con saltos de línea y viñetas.
-- Usa "doble salto de línea" entre cada sección o párrafo.
-- Si ves un correo electrónico (como servicio_social_escom@ipn.mx), ponlo en una línea sola para que sea fácil de ver.
-- Usa párrafos separados
-- Usa viñetas con "-" si hay pasos o requisitos
-- No pongas todo en un soslo bloque
-
-Ejemplo:
-Requisitos:
-- Documento 1
-- Documento 2
-
-Explicación:
-Texto aquí...
-
-"""
-
-        response = model.generate_content(prompt)
-        answer = response.text
-
-        chat_history.append((question, answer))
-        cache[question] = answer
-
-        return answer
-
+        except Exception as e:
+            # ESTO ES LO QUE VERÁS EN LA TERMINAL
+            print(f"Error interno en la cadena: {str(e)}")
+            return f"Lo siento, hubo un error técnico al procesar la pregunta."
     return chain

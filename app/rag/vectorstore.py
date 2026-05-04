@@ -43,12 +43,17 @@ def build_vectorstore():
             "Verifica que los PDFs tengan texto."
         )
 
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
+        # En tu lógica de creación de fragmentos:
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1500, # Aumentado para dar más contexto por pedazo
+        chunk_overlap=300,
+        add_start_index=True # Útil para trazabilidad
     )
 
-    docs = splitter.split_documents(documents)
+    # Al cargar los documentos, el 'source' se guarda automáticamente en metadata
+    docs = loader.load()
+    chunks = text_splitter.split_documents(docs)
+    vector_db = FAISS.from_documents(chunks, embeddings)
 
     for i, doc in enumerate(docs):
         print(f"\n--- Chunk {i} ---\n{doc.page_content}")
