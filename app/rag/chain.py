@@ -19,6 +19,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FAISS_DIR = BASE_DIR / "data" / "faiss"
 FAST_RESPONSES_PATH = BASE_DIR / "rag" / "fast_responses.json"
 
+try:
+    with open(FAST_RESPONSES_PATH, "r", encoding="utf-8") as f:
+        FAST_RESPONSES = json.load(f)
+except FileNotFoundError:
+    print(f"[WARN] fast_responses.json no encontrado en {FAST_RESPONSES_PATH}")
+    FAST_RESPONSES = [] 
+
 with open(FAST_RESPONSES_PATH, "r", encoding="utf-8") as f:
     FAST_RESPONSES = json.load(f)
 

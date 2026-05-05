@@ -19,30 +19,32 @@ def clean_text(text):
     text = re.sub(r'\s+', ' ', text)
     return text.strip()
 
+# vectorstore.py — reemplaza build_vectorstore completo
 def build_vectorstore():
-    documents = []
-    embeddings = HuggingFaceEmbeddings(  # ✅ Definir PRIMERO
+    # Importa el loader que ya tiene download_pdfs integrado
+    try:
+        from app.rag.loader import load_documents
+    except ImportError:
+        from rag.loader import load_documents
+
+    print("[VECTORSTORE] Cargando documentos...")
+    documents = load_documents()  # ← ya descarga Y limpia el texto
+
+    if not documents:
+        raise ValueError("No hay documentos para indexar")
+
+    embeddings = HuggingFaceEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
-
-    for pdf in PDF_DIR.glob("*.pdf"):
-        loader = PyPDFLoader(str(pdf))
-        pages = loader.load()
-        for page in pages:
-            page.page_content = clean_text(page.page_content)
-        documents.extend(pages)
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1500,
         chunk_overlap=300,
     )
-    chunks = text_splitter.split_documents(documents)  # ✅ Todos los docs
+    chunks = text_splitter.split_documents(documents)
+    print(f"[VECTORSTORE] Chunks generados: {len(chunks)}")
 
     vectorstore = FAISS.from_documents(chunks, embeddings)
     FAISS_DIR.mkdir(parents=True, exist_ok=True)
     vectorstore.save_local(str(FAISS_DIR))
-
-    print("Vectorstore FAISS creado correctamente")
-
-if __name__ == "__main__":
-    build_vectorstore()
+    print("[VECTORSTORE] FAISS guardado correctamente")
