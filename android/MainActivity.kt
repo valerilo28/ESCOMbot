@@ -80,8 +80,8 @@ class MainActivity : AppCompatActivity() {
 
     // Verifica /health antes de enviar — evita el "se está iniciando" infinito
     private fun waitForServerAndSend(text: String, retries: Int = 0) {
-        // Máximo ~60s de polling (20 intentos x 3s)
-        if (retries > 20) {
+        // Máximo ~90s de polling (30 intentos x 3s)
+        if (retries > 30) {
             removeTypingIndicator()
             messages.add(Message("El servidor tardó demasiado en iniciar. Intenta de nuevo en un momento 😔", isBot = true))
             adapter.notifyItemInserted(messages.size - 1)

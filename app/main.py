@@ -10,9 +10,10 @@ from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
 
 # --- DIRECTORIOS ---
-BASE_DIR = Path(__file__).resolve().parent.parent
-STATIC_PATH = BASE_DIR / "app" / "static"
-PDF_DIR = BASE_DIR / "data" / "pdfs"
+# main.py está en app/, su parent es la raíz del proyecto
+BASE_DIR = Path(__file__).resolve().parent        # → app/
+STATIC_PATH = BASE_DIR / "static"                 # → app/static/
+PDF_DIR = BASE_DIR / "data" / "pdfs"              # → app/data/pdfs/
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 
 # --- SUPABASE (opcional) ---
@@ -23,6 +24,7 @@ except ImportError:
 
 # --- VARIABLE GLOBAL ---
 chain = None
+startup_failed = False  # True si load_chain() retornó None
 
 # --- MODELOS ---
 class ChatRequest(BaseModel):
@@ -34,13 +36,14 @@ async def _load_chain_background():
     global chain
     loop = asyncio.get_event_loop()
     try:
-        # Solo cargamos el índice FAISS que ya existe — no reconstruimos ni descargamos
-        # La reconstrucción solo ocurre cuando se sube un PDF nuevo via /upload_pdf
         print("[STARTUP] Cargando chain desde índice existente...")
         from app.rag.chain import load_chain
-        chain = await loop.run_in_executor(None, load_chain)
-        print("[STARTUP] ✅ Chain lista.")
-
+        result = await loop.run_in_executor(None, load_chain)
+        if result is None:
+            print("[STARTUP] ❌ load_chain() retornó None — revisa los logs de FAISS arriba.")
+        else:
+            chain = result
+            print("[STARTUP] ✅ Chain lista.")
     except Exception as e:
         import traceback
         print(f"[STARTUP ERROR]\n{traceback.format_exc()}")

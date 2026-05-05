@@ -3,8 +3,7 @@ import time
 import datetime
 from pathlib import Path
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 import json
 import re
 
@@ -74,8 +73,17 @@ def classify_question(question: str) -> str:
     return ""
 
 def load_chain():
-    # 1. Embeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    print(f"[CHAIN] BASE_DIR: {BASE_DIR}")
+    print(f"[CHAIN] Buscando FAISS en: {FAISS_DIR}")
+    print(f"[CHAIN] FAISS existe: {FAISS_DIR.exists()}")
+
+    # Google Embeddings — no requiere torch, usa la misma API key de Gemini
+    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/embedding-001",
+        google_api_key=os.getenv("GOOGLE_API_KEY")
+    )
+    print("[CHAIN] Embeddings listos.")
 
     # 2. Cargar FAISS
     try:
@@ -85,17 +93,19 @@ def load_chain():
             allow_dangerous_deserialization=True
         )
         retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-        print("Base de datos FAISS cargada correctamente.")
+        print("[CHAIN] ✅ Base de datos FAISS cargada correctamente.")
     except Exception as e:
-        print(f"Error cargando FAISS: {e}")
+        print(f"[CHAIN] ❌ Error cargando FAISS: {e}")
         return None
 
     # 3. Modelo Gemini
+    api_key = os.getenv("GOOGLE_API_KEY")
+    print(f"[CHAIN] GOOGLE_API_KEY presente: {bool(api_key)}")
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.0-flash",
         temperature=0.0,
-        max_output_tokens=700,  # Subido de 400 para evitar respuestas cortadas
-        google_api_key=os.getenv("GOOGLE_API_KEY")
+        max_output_tokens=700,
+        google_api_key=api_key
     )
 
     def chain(question: str, history_from_app: list = None):
@@ -180,7 +190,12 @@ RESPUESTA (sigue el formato, máximo 100 palabras):"""
             return answer
 
         except Exception as e:
-            print(f"Error interno en la cadena: {str(e)}")
-            return "Lo siento, hubo un error técnico al procesar la pregunta."
+            err = str(e)
+            print(f"Error interno en la cadena: {err}")
+            if "RESOURCE_EXHAUSTED" in err or "429" in err:
+                return "El servicio de IA alcanzó su límite de uso por hoy. Intenta de nuevo mañana o contacta al administrador."
+            if "API_KEY" in err or "401" in err or "403" in err:
+                return "Error de configuración del servidor. Contacta al administrador."
+            return "Lo siento, hubo un error técnico al procesar la pregunta. Intenta de nuevo en un momento."
 
     return chain
