@@ -57,7 +57,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(_load_chain_background())
     yield
 
-# --- APP (debe crearse ANTES de cualquier @app.ruta) ---
+# --- APP ---
 app = FastAPI(title="Chatbot ESCOM", lifespan=lifespan)
 
 app.add_middleware(
@@ -96,20 +96,24 @@ async def upload_pdf(
         content = await file.read()
         filename = f"{category}_{year}-{semester}_{file.filename.replace(' ', '_')}"
 
+        # 1. Guardar en disco primero
         file_path = PDF_DIR / filename
         with open(file_path, "wb") as f:
             f.write(content)
 
+        # 2. Subir a Supabase
         if supabase:
             try:
                 supabase.storage.from_("pdfs").upload(filename, content)
             except Exception as e_supa:
                 print(f"[SUPABASE] Error subiendo: {e_supa}")
 
+        # 3. Reconstruir vectorstore con el nuevo PDF ya en disco
         loop = asyncio.get_event_loop()
         from app.rag.vectorstore import build_vectorstore
         await loop.run_in_executor(None, build_vectorstore)
 
+        # 4. Recargar chain
         from app.rag.chain import load_chain
         chain = load_chain()
 
@@ -122,10 +126,24 @@ async def upload_pdf(
 @app.post("/chat")
 async def chat(request: ChatRequest):
     try:
-        if not chain:
-            return {"answer": "El sistema se está iniciando, espera un momento... ⏳"}
+        # Esperar hasta 120s a que el chain termine de cargar (cold start de Render)
+        waited = 0
+        while chain is None and waited < 120:
+            await asyncio.sleep(3)
+            waited += 3
+            print(f"[CHAT] Esperando chain... {waited}s")
 
-        response = chain(request.question, request.history)
+        if chain is None:
+            return {
+                "answer": "El servidor tardó demasiado en iniciar. Por favor intenta de nuevo en unos segundos.",
+                "status": "error"
+            }
+
+        # Ejecutar en executor para no bloquear el event loop
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None, lambda: chain(request.question, request.history)
+        )
         return {"answer": response, "status": "ok"}
 
     except Exception as e:

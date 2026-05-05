@@ -24,10 +24,7 @@ try:
         FAST_RESPONSES = json.load(f)
 except FileNotFoundError:
     print(f"[WARN] fast_responses.json no encontrado en {FAST_RESPONSES_PATH}")
-    FAST_RESPONSES = [] 
-
-with open(FAST_RESPONSES_PATH, "r", encoding="utf-8") as f:
-    FAST_RESPONSES = json.load(f)
+    FAST_RESPONSES = []
 
 # --- CACHE A NIVEL DE MÓDULO (persiste entre llamadas) ---
 _response_cache: dict = {}
