@@ -34,15 +34,9 @@ async def _load_chain_background():
     global chain
     loop = asyncio.get_event_loop()
     try:
-        print("[STARTUP] Paso 1: Descargando PDFs...")
-        from app.storage.download_pdfs import download_pdfs
-        await loop.run_in_executor(None, download_pdfs)
-
-        print("[STARTUP] Paso 2: Construyendo FAISS...")
-        from app.rag.vectorstore import build_vectorstore
-        await loop.run_in_executor(None, build_vectorstore)
-
-        print("[STARTUP] Paso 3: Cargando chain...")
+        # Solo cargamos el índice FAISS que ya existe — no reconstruimos ni descargamos
+        # La reconstrucción solo ocurre cuando se sube un PDF nuevo via /upload_pdf
+        print("[STARTUP] Cargando chain desde índice existente...")
         from app.rag.chain import load_chain
         chain = await loop.run_in_executor(None, load_chain)
         print("[STARTUP] ✅ Chain lista.")
