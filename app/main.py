@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 from contextlib import asynccontextmanager
-from rag.vectorstore import build_vectorstore
+from app.rag.vectorstore import build_vectorstore
 
 # Intentamos importar la lógica del chatbot
 try:
