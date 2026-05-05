@@ -6,6 +6,7 @@ from langchain_community.chat_models import ChatOllama
 from langchain_community.vectorstores import FAISS
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_google_genai import ChatGoogleGenerativeAI
 import json
 import re
 
@@ -63,8 +64,7 @@ def get_current_period():
     semester = "2" if 2 <= now.month <= 7 else "1"
     return f"{now.year}-{semester}"
 
-
-# --- CARGA DE LA CADENA ---
+    cache = {}
 
 def load_chain():
     # 1. Configurar Embeddings (Deben ser los mismos que usaste al crear el índice)
@@ -84,19 +84,14 @@ def load_chain():
         return None
 
     # 3. Configurar el modelo Gemini vía LangChain (v1beta para evitar el 404)
-    llm = ChatOllama(
-    #model="llama3",
-    model="mistral",
-    temperature=0.1,
-    num_predict=300
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0.0,       # 0.0 = sin creatividad, solo hechos
+        max_output_tokens=400, # Suficiente para 5 puntos claros
+        google_api_key=os.getenv("GOOGLE_API_KEY")
     )
-    
-    cache = {}
+        
 
-    
-
-    # --- FUNCIÓN INTERNA DE PROCESAMIENTO ---
-    
     def chain(question: str, history_from_app: list = None):
         if not can_call_model():
             return "Por favor, espera un momento..."
@@ -143,7 +138,7 @@ def load_chain():
                 if filtered: 
                     context_docs = filtered
 
-            context_text = "\n---\n".join(d.page_content for d in context_docs[:2])
+            context_text = "\n---\n".join(d.page_content for d in context_docs[:3])
 
             # C. Historial
             history_text = ""
@@ -151,26 +146,36 @@ def load_chain():
                 history_text = "\n".join([f"Usuario: {h['user']}\nBot: {h['bot']}" for h in history_from_app[-3:]])
 
             # E. Prompt Maestro
-            prompt = f"""Eres el Asistente Oficial de la ESCOM IPN.
+            # QUITA el prompt anterior completo y PON este:
+            prompt = f"""Eres ESCOMbot, asistente oficial de ESCOM IPN. Responde SOLO sobre becas, servicio social y estancia profesional.
 
-            Hoy es {fecha_actual} y el ciclo escolar es {periodo_actual}.
+            FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
-        INSTRUCCIONES DE RESPUESTA:
-        1. **FILTRO DE VIGENCIA**: Si la información proviene de un documento con un periodo distinto a {periodo_actual} (ej. 2025-1, 2025-2), debes iniciar tu respuesta con: "Nota: Esta información corresponde al periodo [Periodo del archivo] y es solo para referencia."
-        2. **FIDELIDAD AL CONTEXTO**: Responde UNICAMENTE con la información proporcionada en el contexto. Si no está ahí, di: "No cuento con esa información específica, te sugiero preguntar en Gestión Escolar."
-        3. **FORMATO**: Responde en un máximo de 5 puntos claros. Usa **negritas** para resaltar requisitos o fechas y viñetas para organizar.
-        4. **ESTRUCTURA**: Asegúrate de cerrar todas las ideas. No dejes listas ni frases incompletas.
-        5. **TONO**: Sé amable, profesional y directo. No menciones "según el PDF" o "en el texto proporcionado".
+            ═══ REGLAS QUE NUNCA PUEDES ROMPER ═══
+            REGLA 1 — SOLO USA EL CONTEXTO: Si la respuesta no está literalmente en el CONTEXTO, responde exactamente: "No tengo esa información en este momento. Te recomiendo acudir a Gestión Escolar (Edificio 1, Planta Baja) o llamar al 57296000 ext. 52001."
 
-    CONTEXTO DE LOS DOCUMENTOS:
-    {context_text}
+            REGLA 2 — FORMATO OBLIGATORIO: Usa SIEMPRE esta estructura:
+            - Empieza con una línea resumen en negrita
+            - Usa viñetas (•) para listas, nunca guiones
+            - Resalta fechas con ⚠️
+            - Máximo 5 puntos, máximo 100 palabras en total
 
-    HISTORIAL DE CONVERSACIÓN:
-    {history_text}
+            REGLA 3 — TONO: Directo, sin "Claro que sí", sin "Por supuesto", sin relleno.
 
-    PREGUNTA DEL ALUMNO:
-    {question}
-    """
+            REGLA 4 — VIGENCIA: Si el documento es de un ciclo distinto a {periodo_actual}, inicia con: "⚠️ Dato de periodo anterior — verifica vigencia:"
+
+            REGLA 5 — PREGUNTAS FUERA DE TEMA: Si preguntan sobre calificaciones, horarios, profesores u otros temas, responde: "Solo puedo ayudarte con becas, servicio social y estancia profesional. Para otros trámites, contacta a Gestión Escolar."
+
+            ═══ CONTEXTO DE DOCUMENTOS ═══
+            {context_text}
+
+            ═══ HISTORIAL RECIENTE ═══
+            {history_text}
+
+            ═══ PREGUNTA ═══
+            {question}
+
+            RESPUESTA (sigue el formato, máximo 100 palabras):"""
 # E. Ejecución
             response = llm.invoke(prompt)
             answer = fix_incomplete_answer(response.content)

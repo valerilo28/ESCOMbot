@@ -7,6 +7,8 @@ from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from contextlib import asynccontextmanager
+from rag.vectorstore import build_vectorstore
 
 # Intentamos importar la lógica del chatbot
 try:
@@ -50,6 +52,17 @@ class ChatRequest(BaseModel):
     question: str
     history: List[dict] = [] # Añadido para soportar historial desde la app
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global chain
+    loop = asyncio.get_event_loop()
+    chain = await loop.run_in_executor(None, load_chain)
+    print("Chatbot listo.")
+    yield  # La app corre aquí
+    # Cleanup si necesitas
+
+app = FastAPI(title="Chatbot ESCOM", lifespan=lifespan)
+
 # --- EVENTOS ---
 @app.on_event("startup")
 async def startup_event():
@@ -75,6 +88,13 @@ async def upload_pdf(
     year: str = Form(...),
     semester: str = Form(...)
 ):
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, build_vectorstore)
+    
+    # ✅ AGREGAR: recargar el chain con el nuevo índice
+    global chain
+    chain = load_chain()
+
     try:
         content = await file.read()
         
