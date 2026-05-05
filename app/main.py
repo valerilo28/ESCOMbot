@@ -20,24 +20,16 @@ except ModuleNotFoundError:
 try:
     from app.storage.supabase_client import supabase
 except ImportError:
-    supabase = None # Por si aún no configuras el cliente
+    supabase = None
 
-# 1. INICIALIZAR LA APP (Primero que nada)
-app = FastAPI(title="Chatbot ESCOM - Gemini")
-
-# 2. CONFIGURAR RUTAS Y DIRECTORIOS
+# --- DIRECTORIOS ---
 BASE_DIR = Path(__file__).resolve().parent.parent
-STATIC_PATH = BASE_DIR / "app" /"static"
+STATIC_PATH = BASE_DIR / "app" / "static"
 PDF_DIR = BASE_DIR / "app" / "data" / "pdfs"
 
-# Crear carpetas si no existen
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 
-# 3. MONTAR ARCHIVOS ESTÁTICOS (Después de crear 'app')
-if STATIC_PATH.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_PATH)), name="static")
-
-# Variables globales
+# --- VARIABLE GLOBAL ---
 chain = None
 
 def get_chain():
@@ -47,32 +39,46 @@ def get_chain():
         chain = load_chain()
     return chain
 
-# Modelos de datos
+# --- MODELOS ---
 class ChatRequest(BaseModel):
     question: str
-    history: List[dict] = [] # Añadido para soportar historial desde la app
+    history: List[dict] = []
 
+# --- LIFESPAN (carga en background para no bloquear el puerto) ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global chain
-    loop = asyncio.get_event_loop()
-    chain = await loop.run_in_executor(None, load_chain)
-    print("Chatbot listo.")
-    yield  # La app corre aquí
-    # Cleanup si necesitas
+    # Cargamos en background para que Render detecte el puerto de inmediato
+    asyncio.create_task(_load_chain_background())
+    yield
 
+async def _load_chain_background():
+    global chain
+    loop = asyncio.get_event_loop()
+    print("[STARTUP] Cargando chain en background...")
+    chain = await loop.run_in_executor(None, load_chain)
+    print("[STARTUP] Chain listo.")
+
+# --- APP (una sola instancia, con lifespan y CORS desde el inicio) ---
 app = FastAPI(title="Chatbot ESCOM", lifespan=lifespan)
 
-# --- EVENTOS ---
-@app.on_event("startup")
-async def startup_event():
-    global chain
-    # Cargamos el modelo en segundo plano para no bloquear el inicio del servidor
-    loop = asyncio.get_event_loop()
-    chain = await loop.run_in_executor(None, load_chain)
-    print("Chatbot listo para recibir preguntas.")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+if STATIC_PATH.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_PATH)), name="static")
 
 # --- RUTAS DE ADMINISTRACIÓN ---
+
+@app.get("/health")
+async def health():
+    """Endpoint para que la app móvil detecte si el servidor está activo."""
+    return {"status": "ok", "chain_loaded": chain is not None}
 
 @app.get("/upload", response_class=HTMLResponse)
 async def get_upload_page():
@@ -88,31 +94,31 @@ async def upload_pdf(
     year: str = Form(...),
     semester: str = Form(...)
 ):
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, build_vectorstore)
-    
-    # ✅ AGREGAR: recargar el chain con el nuevo índice
     global chain
-    chain = load_chain()
-
     try:
         content = await file.read()
-        
-        # Estructura de nombre: categoria_año-semestre_nombreoriginal.pdf
-        # Ejemplo: becas_2026-2_convocatoria.pdf
+
+        # Estructura: categoria_año-semestre_nombreoriginal.pdf
         filename = f"{category}_{year}-{semester}_{file.filename.replace(' ', '_')}"
-        
-        # 1. Guardar localmente (Necesario para que FAISS lo procese luego)
+
+        # 1. Guardar localmente PRIMERO
         file_path = PDF_DIR / filename
         with open(file_path, "wb") as f:
             f.write(content)
-        
-        # 2. Subir a Supabase (Opcional, según tu flujo)
+
+        # 2. Subir a Supabase
         if supabase:
             try:
                 supabase.storage.from_("pdfs").upload(filename, content)
             except Exception as e_supa:
                 print(f"Error subiendo a Supabase: {e_supa}")
+
+        # 3. Reconstruir vectorstore con el nuevo PDF ya en disco
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, build_vectorstore)
+
+        # 4. Recargar el chain con el índice actualizado
+        chain = load_chain()
 
         return {"message": f"Archivo {filename} cargado y clasificado con éxito."}
     except Exception as e:
@@ -127,7 +133,6 @@ async def chat(request: ChatRequest):
         if not current_chain:
             return {"answer": "El sistema se está iniciando, por favor espera un momento..."}
 
-        # Pasamos la pregunta y el historial (si tu chain lo soporta)
         response = current_chain(request.question, request.history)
         return {
             "answer": response,
@@ -148,12 +153,3 @@ async def get_suggestions():
             "¿Cómo contacto a Gestión Escolar?"
         ]
     }
-
-# 4. CONFIGURAR CORS (Al final para asegurar que todas las rutas lo tengan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
