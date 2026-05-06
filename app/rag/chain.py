@@ -80,7 +80,7 @@ def load_chain():
     # Google Embeddings — no requiere torch, usa la misma API key de Gemini
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="models/gemini-embedding-2-preview",
         google_api_key=os.getenv("GOOGLE_API_KEY")
     )
     print("[CHAIN] Embeddings listos.")
