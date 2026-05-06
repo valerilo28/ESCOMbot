@@ -1,6 +1,8 @@
 """
 Ejecuta este script UNA VEZ en tu máquina local para reconstruir
-el índice FAISS usando Google Embeddings (sin torch).
+el índice FAISS usando sentence-transformers (all-MiniLM-L6-v2).
+El servidor usa HuggingFaceInferenceAPIEmbeddings con el mismo modelo,
+así los vectores son compatibles.
 
 Uso:
     python rebuild_index.py
@@ -11,12 +13,67 @@ from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 import re
-import time
 
-# Forzar la carga de la nueva API Key desde el archivo .env
 load_dotenv()
+
+BASE_DIR = Path(__file__).resolve().parent / "app"
+PDF_DIR = BASE_DIR / "data" / "pdfs"
+FAISS_DIR = BASE_DIR / "data" / "faiss"
+
+def clean_text(text):
+    text = re.sub(r'-\n', '', text)
+    text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)
+    text = re.sub(r'\s{2,}', ' ', text)
+    return text.strip()
+
+def rebuild():
+    print(f"Buscando PDFs en: {PDF_DIR}")
+    documents = []
+
+    if not PDF_DIR.exists():
+        print(f"❌ La carpeta {PDF_DIR} no existe.")
+        return
+
+    for pdf in PDF_DIR.glob("*.pdf"):
+        print(f"  Cargando: {pdf.name}")
+        try:
+            loader = PyPDFLoader(str(pdf))
+            pages = loader.load()
+            for page in pages:
+                page.page_content = clean_text(page.page_content)
+            documents.extend(pages)
+        except Exception as e:
+            print(f"  ⚠️ Error cargando {pdf.name}: {e}")
+
+    if not documents:
+        print("❌ No se encontraron PDFs.")
+        return
+
+    print(f"Total páginas: {len(documents)}")
+
+    splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    chunks = splitter.split_documents(documents)
+    print(f"Chunks generados: {len(chunks)}")
+
+    print("Generando embeddings locales (all-MiniLM-L6-v2)...")
+    embeddings = HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        model_kwargs={"device": "cpu"},
+        encode_kwargs={"normalize_embeddings": True}
+    )
+
+    vectorstore = FAISS.from_documents(chunks, embeddings)
+    FAISS_DIR.mkdir(parents=True, exist_ok=True)
+    vectorstore.save_local(str(FAISS_DIR))
+
+    print("-" * 30)
+    print(f"✅ Índice FAISS guardado en: {FAISS_DIR}")
+    print("Haz commit de app/data/faiss/ y push.")
+
+if __name__ == "__main__":
+    rebuild()
 
 # Rutas de carpetas
 BASE_DIR = Path(__file__).resolve().parent / "app"

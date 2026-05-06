@@ -12,3 +12,4 @@ pypdf
 pydantic
 supabase
 python-dotenv
+langchain-groq

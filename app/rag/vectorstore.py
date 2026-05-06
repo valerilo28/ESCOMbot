@@ -34,7 +34,7 @@ def build_vectorstore():
     from langchain_google_genai import GoogleGenerativeAIEmbeddings
     import os
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/embedding-001",
+        model="models/text-embedding-004",
         google_api_key=os.getenv("GOOGLE_API_KEY")
     )
 

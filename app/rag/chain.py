@@ -3,7 +3,7 @@ import time
 import datetime
 from pathlib import Path
 from langchain_community.vectorstores import FAISS
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_groq import ChatGroq
 import json
 import re
 
@@ -77,11 +77,11 @@ def load_chain():
     print(f"[CHAIN] Buscando FAISS en: {FAISS_DIR}")
     print(f"[CHAIN] FAISS existe: {FAISS_DIR.exists()}")
 
-    # Google Embeddings — no requiere torch, usa la misma API key de Gemini
-    from langchain_google_genai import GoogleGenerativeAIEmbeddings
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/gemini-embedding-2-preview",
-        google_api_key=os.getenv("GOOGLE_API_KEY")
+    # Embeddings via API de HuggingFace — sin torch, sin memoria pesada
+    from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
+    embeddings = HuggingFaceInferenceAPIEmbeddings(
+        api_key=os.getenv("HF_TOKEN", "hf_placeholder"),
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
     print("[CHAIN] Embeddings listos.")
 
@@ -101,11 +101,11 @@ def load_chain():
     # 3. Modelo Gemini
     api_key = os.getenv("GOOGLE_API_KEY")
     print(f"[CHAIN] GOOGLE_API_KEY presente: {bool(api_key)}")
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
-        temperature=0.0,
-        max_output_tokens=700,
-        google_api_key=api_key
+    llm = ChatGroq(
+    model="mistral-saba-24b",
+    temperature=0.0,
+    max_tokens=400,
+    api_key=os.getenv("GROQ_API_KEY")
     )
 
     def chain(question: str, history_from_app: list = None):
