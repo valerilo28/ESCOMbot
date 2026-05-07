@@ -12,5 +12,6 @@ pypdf
 pydantic
 supabase
 python-dotenv
+langchain-huggingface
 langchain-groq
 # rebuild 05/07/2026 00:14:55
