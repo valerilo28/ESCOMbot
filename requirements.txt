@@ -3,15 +3,14 @@ uvicorn
 python-multipart
 langchain
 langchain-community
-langchain-google-genai
+langchain-groq
+langchain-huggingface
+sentence-transformers
 huggingface-hub
-google-generativeai
 faiss-cpu
-rank-bm25
 pypdf
 pydantic
 supabase
 python-dotenv
-langchain-huggingface
-langchain-groq
-# rebuild 05/07/2026 00:14:55
+rank-bm25
+torch --index-url https://download.pytorch.org/whl/cpu
