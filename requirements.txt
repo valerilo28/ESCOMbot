@@ -13,3 +13,4 @@ pydantic
 supabase
 python-dotenv
 langchain-groq
+# rebuild 05/07/2026 00:14:55
