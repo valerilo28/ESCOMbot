@@ -101,6 +101,12 @@ def load_chain():
     # 3. Modelo Gemini
     api_key = os.getenv("GOOGLE_API_KEY")
     print(f"[CHAIN] GOOGLE_API_KEY presente: {bool(api_key)}")
+
+    groq_key = os.getenv("GROQ_API_KEY")
+        if not groq_key:
+            print("[ERROR] GROQ_API_KEY no está configurada en las variables de entorno")
+            return None
+            
     llm = ChatGroq(
     model="mistral-saba-24b",
     temperature=0.0,
@@ -189,13 +195,11 @@ RESPUESTA (sigue el formato, máximo 100 palabras):"""
             _response_cache[cache_key] = answer
             return answer
 
+        # chain.py — reemplaza el except al final de la función chain()
         except Exception as e:
-            err = str(e)
-            print(f"Error interno en la cadena: {err}")
-            if "RESOURCE_EXHAUSTED" in err or "429" in err:
-                return "El servicio de IA alcanzó su límite de uso por hoy. Intenta de nuevo mañana o contacta al administrador."
-            if "API_KEY" in err or "401" in err or "403" in err:
-                return "Error de configuración del servidor. Contacta al administrador."
-            return "Lo siento, hubo un error técnico al procesar la pregunta. Intenta de nuevo en un momento."
+            import traceback
+            print(f"[ERROR DETALLADO]\n{traceback.format_exc()}")
+            print(f"[GROQ_API_KEY presente]: {bool(os.getenv('GROQ_API_KEY'))}")
+            return "Lo siento, hubo un error técnico al procesar la pregunta."
 
     return chain
