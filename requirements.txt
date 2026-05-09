@@ -4,13 +4,10 @@ python-multipart
 langchain
 langchain-community
 langchain-groq
-langchain-huggingface
-sentence-transformers
 huggingface-hub
 faiss-cpu
+rank-bm25
 pypdf
 pydantic
 supabase
 python-dotenv
-rank-bm25
-torch --index-url https://download.pytorch.org/whl/cpu
