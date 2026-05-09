@@ -34,24 +34,28 @@ class ChatRequest(BaseModel):
 # --- STARTUP EN BACKGROUND ---
 async def _load_chain_background():
     global chain
-    loop = asyncio.get_event_loop()
     try:
-        print("[STARTUP] Cargando chain desde índice existente...")
-        from app.rag.chain import load_chain
+        print("[STARTUP] Iniciando carga de chain...")
+        import importlib
+        mod = importlib.import_module("app.rag.chain")
+        load_chain = mod.load_chain
+
+        loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(None, load_chain)
         if result is None:
-            print("[STARTUP] ❌ load_chain() retornó None — revisa los logs de FAISS arriba.")
+            print("[STARTUP] ❌ load_chain() retornó None.")
         else:
             chain = result
             print("[STARTUP] ✅ Chain lista.")
-    except Exception as e:
+    except Exception:
         import traceback
         print(f"[STARTUP ERROR]\n{traceback.format_exc()}")
 
 # --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    asyncio.create_task(_load_chain_background())
+    # Usar ensure_future en lugar de create_task para mayor compatibilidad
+    asyncio.ensure_future(_load_chain_background())
     yield
 
 # --- APP ---
@@ -72,7 +76,12 @@ if STATIC_PATH.exists():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "chain_loaded": chain is not None}
+    return {
+        "status": "ok",
+        "chain_loaded": chain is not None,
+        "groq_key": bool(os.getenv("GROQ_API_KEY")),
+        "hf_token": bool(os.getenv("HF_TOKEN"))
+    }
 
 @app.get("/upload", response_class=HTMLResponse)
 async def get_upload_page():
