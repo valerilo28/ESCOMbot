@@ -1,6 +1,8 @@
 """
-Reconstruye el índice FAISS usando all-MiniLM-L6-v2 (sentence-transformers).
+Reconstruye el índice FAISS usando FastEmbed (all-MiniLM-L6-v2, sin torch).
 Ejecutar UNA VEZ localmente antes de hacer push.
+
+Instalar antes: pip install fastembed langchain-community faiss-cpu pypdf langchain-text-splitters
 
 Uso:
     python rebuild_index.py
@@ -10,10 +12,10 @@ from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 
-BASE_DIR = Path(__file__).resolve().parent / "app"
-PDF_DIR  = BASE_DIR / "data" / "pdfs"
+BASE_DIR  = Path(__file__).resolve().parent / "app"
+PDF_DIR   = BASE_DIR / "data" / "pdfs"
 FAISS_DIR = BASE_DIR / "data" / "faiss"
 
 def clean_text(text):
@@ -47,11 +49,9 @@ def rebuild():
     ).split_documents(documents)
     print(f"Chunks generados: {len(chunks)}")
 
-    print("Generando embeddings con all-MiniLM-L6-v2...")
-    embeddings = HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        model_kwargs={"device": "cpu"},
-        encode_kwargs={"normalize_embeddings": True}
+    print("Generando embeddings con FastEmbed (all-MiniLM-L6-v2)...")
+    embeddings = FastEmbedEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
     vectorstore = FAISS.from_documents(chunks, embeddings)
@@ -59,7 +59,7 @@ def rebuild():
     vectorstore.save_local(str(FAISS_DIR))
 
     print(f"✅ Índice guardado en: {FAISS_DIR}")
-    print("Haz: git add app/data/faiss/ && git commit -m 'rebuild FAISS' && git push")
+    print("Haz: git add app/data/faiss/ && git commit && git push")
 
 if __name__ == "__main__":
     rebuild()
