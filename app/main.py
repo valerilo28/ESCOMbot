@@ -131,12 +131,14 @@ async def upload_pdf(
         with open(file_path, "wb") as f:
             f.write(content)
 
-        # 2. Subir a Supabase
-        if supabase:
-            try:
-                supabase.storage.from_("pdfs").upload(filename, content)
-            except Exception as e_supa:
-                print(f"[SUPABASE] Error subiendo: {e_supa}")
+        # 2. Subir a Supabase (no crítico — si falla, el PDF ya está en disco)
+        try:
+            from app.storage.supabase_client import get_supabase
+            client = get_supabase()
+            client.storage.from_("pdfs").upload(filename, content)
+            print(f"[SUPABASE] ✅ Subido: {filename}")
+        except Exception as e_supa:
+            print(f"[SUPABASE] ⚠️ No se pudo subir a Supabase (continuando): {e_supa}")
 
         # 3. Reconstruir vectorstore con el nuevo PDF ya en disco
         loop = asyncio.get_event_loop()

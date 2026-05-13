@@ -36,14 +36,31 @@ def fast_response(question: str):
                 return item["answer"]
     return None
 
-def fix_incomplete_answer(answer: str):
+def fix_incomplete_answer(answer: str) -> str:
+    """Limpia y estructura la respuesta antes de enviarla."""
     answer = answer.strip()
-    if not answer.endswith((".", "!", "?")):
+
+    # Quitar markdown de código si el modelo lo mete
+    answer = re.sub(r'```[\w]*\n?', '', answer).strip()
+
+    # Normalizar viñetas — convertir -, *, • a •
+    answer = re.sub(r'^[\-\*]\s+', '• ', answer, flags=re.MULTILINE)
+
+    # Asegurar salto de línea antes de cada viñeta
+    answer = re.sub(r'(?<!\n)(• )', r'\n\1', answer)
+
+    # Colapsar más de 2 saltos de línea seguidos
+    answer = re.sub(r'\n{3,}', '\n\n', answer)
+
+    # Si termina incompleto, cortar en la última oración completa
+    if not answer.endswith((".", "!", "?", ":")):
         sentences = re.split(r'(?<=[.!?]) +', answer)
         if len(sentences) > 1:
-            return " ".join(sentences[:-1])
-        return answer + "..."
-    return answer
+            answer = " ".join(sentences[:-1])
+        else:
+            answer = answer + "..."
+
+    return answer.strip()
 
 def can_call_model():
     global last_call_time
@@ -203,12 +220,29 @@ def load_chain():
 {continuation_note}
 FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
-═══ REGLAS ═══
-1. SOLO USA EL CONTEXTO. Si la respuesta no está ahí, di: "No tengo esa información. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
-2. FORMATO: Resumen en **negrita**, viñetas (•), fechas con ⚠️, máximo 5 puntos y 100 palabras.
-3. TONO: Directo. Sin relleno.
-4. VIGENCIA: Si el documento es de otro ciclo: "⚠️ Dato de periodo anterior:"
-5. FUERA DE TEMA: "{out_of_scope}"
+═══ REGLAS DE FORMATO (OBLIGATORIAS) ═══
+1. ESTRUCTURA: Usa SIEMPRE este orden:
+   - Primera línea: resumen en **negrita** (máx. 10 palabras)
+   - Luego lista con viñetas (•), UNA por línea, con salto de línea entre cada una
+   - Nunca escribas párrafos largos corridos
+
+2. VIÑETAS: Cada punto en su propia línea así:
+   • Punto uno
+   • Punto dos
+   • Punto tres
+
+3. LÍMITES: Máximo 5 viñetas. Máximo 100 palabras en total.
+
+4. FECHAS: Resáltalas con ⚠️ Ej: ⚠️ Fecha límite: 22 de mayo
+
+5. FUERA DE CONTEXTO: Si no está en el CONTEXTO, responde exactamente:
+   "No tengo esa información. Acude a Gestión Escolar (Edificio 1, PB) o llama al 57296000 ext. 52001."
+
+6. VIGENCIA: Si el documento es de otro ciclo: "⚠️ Dato de periodo anterior — verifica vigencia:"
+
+7. FUERA DE TEMA: "{out_of_scope}"
+
+8. TONO: Directo. Sin "Claro que sí", sin "Por supuesto", sin introducción.
 
 ═══ CONTEXTO ═══
 {context_text}
@@ -219,7 +253,7 @@ FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 ═══ PREGUNTA ═══
 {question}
 
-RESPUESTA (máximo 100 palabras):"""
+RESPUESTA (sigue el formato exacto, máximo 100 palabras):"""
 
             response = llm.invoke(prompt)
             answer = fix_incomplete_answer(response.content)
