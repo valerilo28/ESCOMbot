@@ -2,97 +2,257 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Control - ESCOMbot</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; background: #f0f2f5; display: flex; justify-content: center; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
-        h2 { color: #003972; text-align: center; margin-bottom: 25px; border-bottom: 2px solid #003972; padding-bottom: 10px; }
-        label { font-weight: bold; display: block; margin-top: 15px; color: #333; }
-        select, input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
-        .flex-row { display: flex; gap: 10px; }
-        button { 
-            background: #003972; color: white; border: none; padding: 14px; 
-            border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; 
-            font-weight: bold; margin-top: 20px; transition: background 0.3s;
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px;
         }
-        button:hover { background: #0056ac; }
-        #msg { text-align: center; margin-top: 15px; font-weight: bold; }
-        .success { color: #28a745; }
-        .error { color: #dc3545; }
+
+        header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 32px;
+        }
+
+        header img {
+            height: 52px;
+        }
+
+        header h1 {
+            color: #003972;
+            font-size: 1.4rem;
+            line-height: 1.2;
+        }
+
+        header h1 span {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 400;
+            color: #555;
+        }
+
+        .card {
+            background: white;
+            padding: 32px;
+            border-radius: 14px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .card h2 {
+            color: #003972;
+            font-size: 1.1rem;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e8edf3;
+        }
+
+        .field { margin-bottom: 18px; }
+
+        label {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #444;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        select, input[type="file"], input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid #d0d7e2;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            color: #333;
+            background: #fafbfc;
+            transition: border-color 0.2s;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: #003972;
+            background: white;
+        }
+
+        .flex-row { display: flex; gap: 10px; }
+        .flex-row > * { flex: 1; }
+
+        /* Badge de categoría */
+        .category-badge {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .badge-becas       { background: #e3f0ff; color: #0056ac; }
+        .badge-servicio    { background: #e6f9f0; color: #1a7a4a; }
+        .badge-estancia    { background: #fff4e0; color: #b06000; }
+        .badge-temario     { background: #f0e8ff; color: #6200b3; }
+        .badge-general     { background: #f0f0f0; color: #555; }
+
+        button[type="submit"] {
+            background: #003972;
+            color: white;
+            border: none;
+            padding: 13px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 1rem;
+            font-weight: 600;
+            margin-top: 8px;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button[type="submit"]:hover  { background: #0056ac; }
+        button[type="submit"]:active { transform: scale(0.98); }
+        button[type="submit"]:disabled { background: #aab8cc; cursor: not-allowed; }
+
+        #msg {
+            text-align: center;
+            margin-top: 14px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            min-height: 22px;
+        }
+        .success { color: #1a7a4a; }
+        .error   { color: #c0392b; }
+
+        .info-box {
+            background: #f0f5ff;
+            border-left: 3px solid #003972;
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.82rem;
+            color: #444;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+
+        footer {
+            margin-top: 32px;
+            font-size: 0.78rem;
+            color: #999;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
 
+    <header>
+        <div>
+            <h1>ESCOMbot
+                <span>Panel de Administración de Documentos</span>
+            </h1>
+        </div>
+    </header>
+
     <div class="card">
-        <h2>Panel Administrativo</h2>
+        <h2>📄 Subir nuevo documento</h2>
+
         <form id="uploadForm">
-            <label>1. Seleccionar Documento (PDF):</label>
-            <input type="file" id="fileInput" accept=".pdf" required>
 
-            <label>2. Clasificación (Categoría):</label>
-            <select id="category">
-                <option value="becas">Becas</option>
-                <option value="servicio_social">Servicio Social</option>
-                <option value="estancia_profesional">Estancia Profesional</option>
-                <option value="general">General / Trámites</option>
-            </select>
+            <div class="field">
+                <label>1. Seleccionar archivo PDF</label>
+                <input type="file" id="fileInput" accept=".pdf" required>
+            </div>
 
-            <label>3. Periodo Escolar:</label>
-            <div class="flex-row">
-                <input type="number" id="year" value="2026" placeholder="Año">
-                <select id="semester">
-                    <option value="1">Semestre 1</option>
-                    <option value="2">Semestre 2</option>
+            <div class="field">
+                <label>2. Categoría del documento</label>
+                <select id="category">
+                    <option value="becas">🎓 Becas</option>
+                    <option value="servicio_social">🤝 Servicio Social</option>
+                    <option value="estancia_profesional">🏢 Estancia Profesional</option>
+                    <option value="temario">📚 Temario / Bibliografía</option>
+                    <option value="general">📋 General / Avisos / Ubicación</option>
                 </select>
             </div>
 
-            <button type="submit" id="submitBtn">Subir y Clasificar</button>
+            <div class="field">
+                <label>3. Periodo escolar</label>
+                <div class="flex-row">
+                    <input type="number" id="year" value="2026" placeholder="Año" min="2020" max="2035">
+                    <select id="semester">
+                        <option value="1">Semestre 1 (Ago–Ene)</option>
+                        <option value="2">Semestre 2 (Feb–Jul)</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" id="submitBtn">⬆️ Subir y clasificar</button>
         </form>
+
         <p id="msg"></p>
+
+        <div class="info-box">
+            <strong>Categorías disponibles:</strong><br>
+            🎓 <b>Becas</b> — Convocatorias y requisitos<br>
+            🤝 <b>Servicio Social</b> — Procedimientos y liberación<br>
+            🏢 <b>Estancia Profesional</b> — Acreditación y dictamen<br>
+            📚 <b>Temario</b> — Bibliografía de unidades de aprendizaje<br>
+            📋 <b>General</b> — Avisos, ubicación e información institucional
+        </div>
     </div>
 
+    <footer>ESCOMbot · ESCOM IPN · Panel administrativo</footer>
+
     <script>
+        const BASE_URL = "https://escombot.onrender.com";
+
         document.getElementById('uploadForm').onsubmit = async (e) => {
             e.preventDefault();
             const msg = document.getElementById('msg');
             const btn = document.getElementById('submitBtn');
-            
-            // Feedback visual
+
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) {
+                msg.innerText = "Selecciona un archivo PDF.";
+                msg.className = "error";
+                return;
+            }
+
             msg.innerText = "Subiendo archivo...";
             msg.className = "";
             btn.disabled = true;
 
             const formData = new FormData();
-            const file = document.getElementById('fileInput').files[0];
-            const category = document.getElementById('category').value;
-            const year = document.getElementById('year').value;
-            const semester = document.getElementById('semester').value;
-
-            // Enviamos los datos por separado y el archivo
-            // FastAPI se encargará de juntarlos si es necesario
             formData.append('file', file);
-            formData.append('category', category);
-            formData.append('year', year);
-            formData.append('semester', semester);
+            formData.append('category', document.getElementById('category').value);
+            formData.append('year', document.getElementById('year').value);
+            formData.append('semester', document.getElementById('semester').value);
 
             try {
-                const res = await fetch('/upload_pdf', { 
-                    method: 'POST', 
-                    body: formData 
+                const res = await fetch(`${BASE_URL}/upload_pdf`, {
+                    method: 'POST',
+                    body: formData
                 });
-                
+
                 const data = await res.json();
-                
+
                 if (res.ok) {
-                    msg.innerText = "listo " + (data.message || "Archivo subido con éxito");
+                    msg.innerText = "✅ " + (data.message || "Archivo subido con éxito");
                     msg.className = "success";
-                    document.getElementById('uploadForm').reset(); // Limpiar formulario
+                    document.getElementById('uploadForm').reset();
                 } else {
-                    msg.innerText = "Error: " + (data.error || "No se pudo subir");
+                    msg.innerText = "❌ " + (data.detail || data.error || "No se pudo subir");
                     msg.className = "error";
                 }
             } catch (err) {
-                msg.innerText = "Error de conexión con el servidor";
+                msg.innerText = "❌ Error de conexión con el servidor";
                 msg.className = "error";
             } finally {
                 btn.disabled = false;

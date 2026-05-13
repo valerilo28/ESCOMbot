@@ -58,7 +58,24 @@ def get_current_period():
     semester = "2" if 2 <= now.month <= 7 else "1"
     return f"{now.year}-{semester}"
 
-def classify_question(question: str) -> str:
+CONTINUATION_TRIGGERS = {
+    "más", "mas", "más información", "más detalles", "continúa", "continua",
+    "sigue", "y qué más", "que más", "dime más", "amplía", "amplia",
+    "explica más", "detalla", "cuéntame más", "otro", "otra", "siguiente"
+}
+
+def is_continuation(question: str) -> bool:
+    return question.lower().strip() in CONTINUATION_TRIGGERS
+
+def expand_question(question: str, history: list) -> str:
+    """Si la pregunta es una continuación, la reformula con contexto del historial."""
+    if not is_continuation(question) or not history:
+        return question
+    # Tomar la última pregunta del usuario como contexto
+    last_user_q = history[-1].get("user", "") if history else ""
+    if last_user_q:
+        return f"{last_user_q} — proporciona más detalles o información adicional"
+    return question
     q = question.lower()
     if "beca" in q:
         return "becas"
@@ -66,6 +83,8 @@ def classify_question(question: str) -> str:
         return "servicio_social"
     elif "estancia" in q:
         return "estancia_profesional"
+    elif any(w in q for w in ["temario", "bibliograf", "materia", "unidad de aprendizaje", "libro", "autor"]):
+        return "temario"
     return ""
 
 def load_chain():
@@ -86,7 +105,6 @@ def load_chain():
             embeddings,
             allow_dangerous_deserialization=True
         )
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
         print("[CHAIN] ✅ FAISS cargado correctamente.")
     except Exception as e:
         print(f"[CHAIN] ❌ Error cargando FAISS: {e}")
@@ -107,13 +125,43 @@ def load_chain():
     )
     print("[CHAIN] ✅ LLM Groq listo.")
 
+    def _get_docs(question: str, category: str = None):
+        """Recupera documentos filtrando por categoría en metadata."""
+        if category:
+            # Buscar solo dentro de la categoría indicada
+            retriever = vectorstore.as_retriever(
+                search_kwargs={
+                    "k": 4,
+                    "filter": {"category": category}
+                }
+            )
+        else:
+            # Sin filtro — detectar categoría automáticamente
+            detected = classify_question(question)
+            if detected:
+                retriever = vectorstore.as_retriever(
+                    search_kwargs={
+                        "k": 4,
+                        "filter": {"category": detected}
+                    }
+                )
+            else:
+                retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+
+        docs = retriever.invoke(question)
+        return docs
+
     # 4. Función interna de la chain
-    def chain(question: str, history_from_app: list = None):
+    def chain(question: str, history_from_app: list = None, force_category: str = None):
         if not can_call_model():
             return "Por favor, espera un momento antes de enviar otra pregunta."
 
-        cache_key = question.lower().strip()
-        if cache_key in _response_cache:
+        # Expandir preguntas de continuación antes de cachear
+        expanded = expand_question(question, history_from_app or [])
+
+        # No cachear preguntas de continuación — siempre buscar más info
+        cache_key = f"{force_category or ''}:{expanded.lower().strip()}"
+        if not is_continuation(question) and cache_key in _response_cache:
             return _response_cache[cache_key]
 
         fast = fast_response(question)
@@ -124,21 +172,13 @@ def load_chain():
             fecha_actual = datetime.datetime.now().strftime("%B %Y")
             periodo_actual = get_current_period()
 
-            docs = retriever.invoke(question)
-            context_docs = docs
+            # Usar la pregunta expandida para buscar
+            docs = _get_docs(expanded, category=force_category)
 
-            category_filter = classify_question(question)
-            if category_filter:
-                filtered = [
-                    d for d in docs
-                    if category_filter in d.metadata.get("source", "").lower()
-                ]
-                if filtered:
-                    context_docs = filtered
+            if not docs:
+                return "No tengo información sobre eso. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
 
-            context_text = "\n---\n".join(
-                d.page_content for d in context_docs[:3]
-            )
+            context_text = "\n---\n".join(d.page_content for d in docs[:3])
 
             history_text = ""
             if history_from_app:
@@ -147,16 +187,28 @@ def load_chain():
                     for h in history_from_app[-3:]
                 ])
 
-            prompt = f"""Eres ESCOMbot, asistente oficial de ESCOM IPN. Responde SOLO sobre becas, servicio social y estancia profesional.
+            # Ajustar instrucciones según categoría
+            if force_category == "temario":
+                topic_instruction = "Responde SOLO sobre bibliografía y contenido de temarios de unidades de aprendizaje de ESCOM."
+                out_of_scope = "Solo puedo ayudarte con bibliografía y temarios de materias."
+            else:
+                topic_instruction = "Responde SOLO sobre becas, servicio social, estancia profesional e información institucional de ESCOM."
+                out_of_scope = "Solo puedo ayudarte con becas, servicio social, estancia profesional y avisos institucionales."
 
+            continuation_note = ""
+            if is_continuation(question):
+                continuation_note = "\nNOTA: El usuario pide MÁS información sobre el tema anterior. NO repitas lo que ya dijiste en el historial. Proporciona detalles adicionales, pasos siguientes o información complementaria.\n"
+
+            prompt = f"""Eres ESCOMbot, asistente oficial de ESCOM IPN. {topic_instruction}
+{continuation_note}
 FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
-═══ REGLAS QUE NUNCA PUEDES ROMPER ═══
-REGLA 1 — SOLO USA EL CONTEXTO: Si la respuesta no está en el CONTEXTO, di exactamente: "No tengo esa información. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
-REGLA 2 — FORMATO: Empieza con resumen en **negrita**, usa viñetas (•), resalta fechas con ⚠️, máximo 5 puntos y 100 palabras.
-REGLA 3 — TONO: Directo. Sin "Claro que sí", sin relleno.
-REGLA 4 — VIGENCIA: Si el documento es de otro ciclo, inicia con "⚠️ Dato de periodo anterior:"
-REGLA 5 — FUERA DE TEMA: Responde "Solo puedo ayudarte con becas, servicio social y estancia profesional."
+═══ REGLAS ═══
+1. SOLO USA EL CONTEXTO. Si la respuesta no está ahí, di: "No tengo esa información. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
+2. FORMATO: Resumen en **negrita**, viñetas (•), fechas con ⚠️, máximo 5 puntos y 100 palabras.
+3. TONO: Directo. Sin relleno.
+4. VIGENCIA: Si el documento es de otro ciclo: "⚠️ Dato de periodo anterior:"
+5. FUERA DE TEMA: "{out_of_scope}"
 
 ═══ CONTEXTO ═══
 {context_text}
@@ -171,7 +223,9 @@ RESPUESTA (máximo 100 palabras):"""
 
             response = llm.invoke(prompt)
             answer = fix_incomplete_answer(response.content)
-            _response_cache[cache_key] = answer
+            # Solo cachear preguntas normales, no continuaciones
+            if not is_continuation(question):
+                _response_cache[cache_key] = answer
             return answer
 
         except Exception as e:

@@ -132,7 +132,6 @@ async def upload_pdf(
 @app.post("/chat")
 async def chat(request: ChatRequest):
     try:
-        # Esperar hasta 120s a que el chain termine de cargar (cold start de Render)
         waited = 0
         while chain is None and waited < 120:
             await asyncio.sleep(3)
@@ -140,12 +139,8 @@ async def chat(request: ChatRequest):
             print(f"[CHAT] Esperando chain... {waited}s")
 
         if chain is None:
-            return {
-                "answer": "El servidor tardó demasiado en iniciar. Por favor intenta de nuevo en unos segundos.",
-                "status": "error"
-            }
+            return {"answer": "El servidor tardó demasiado en iniciar. Intenta de nuevo.", "status": "error"}
 
-        # Ejecutar en executor para no bloquear el event loop
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None, lambda: chain(request.question, request.history)
@@ -157,13 +152,36 @@ async def chat(request: ChatRequest):
         print(f"[CHAT ERROR]\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Error procesando la pregunta")
 
+@app.post("/chat/temario")
+async def chat_temario(request: ChatRequest):
+    """Endpoint exclusivo para consultas de temarios y bibliografía."""
+    try:
+        waited = 0
+        while chain is None and waited < 120:
+            await asyncio.sleep(3)
+            waited += 3
+
+        if chain is None:
+            return {"answer": "El servidor tardó demasiado en iniciar. Intenta de nuevo.", "status": "error"}
+
+        loop = asyncio.get_event_loop()
+        response = await loop.run_in_executor(
+            None, lambda: chain(request.question, request.history, force_category="temario")
+        )
+        return {"answer": response, "status": "ok"}
+
+    except Exception as e:
+        import traceback
+        print(f"[CHAT/TEMARIO ERROR]\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Error procesando la pregunta")
+
 @app.get("/suggestions")
 async def get_suggestions():
     return {
         "suggestions": [
             "¿Cómo solicito una beca?",
             "Requisitos para servicio social",
-            "¿Cuándo son los exámenes ETS?",
+            "¿Qué bibliografía tiene Cálculo Diferencial?",
             "¿Cómo contacto a Gestión Escolar?"
         ]
     }

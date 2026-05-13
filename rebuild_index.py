@@ -1,8 +1,6 @@
 """
-Reconstruye el índice FAISS usando FastEmbed (all-MiniLM-L6-v2, sin torch).
-Ejecutar UNA VEZ localmente antes de hacer push.
-
-Instalar antes: pip install fastembed langchain-community faiss-cpu pypdf langchain-text-splitters
+Reconstruye el índice FAISS con metadata de categoría por chunk.
+Esto permite filtrar por categoría en la búsqueda y evitar mezcla de información.
 
 Uso:
     python rebuild_index.py
@@ -24,16 +22,27 @@ def clean_text(text):
     text = re.sub(r'\s{2,}', ' ', text)
     return text.strip()
 
+def extract_category(filename: str) -> str:
+    """Extrae la categoría del nombre del archivo: categoria_año-semestre_nombre.pdf"""
+    parts = filename.split("_")
+    if parts:
+        return parts[0].lower()
+    return "general"
+
 def rebuild():
     print(f"Buscando PDFs en: {PDF_DIR}")
     documents = []
 
     for pdf in sorted(PDF_DIR.glob("*.pdf")):
-        print(f"  Cargando: {pdf.name}")
+        category = extract_category(pdf.name)
+        print(f"  [{category}] {pdf.name}")
         try:
             pages = PyPDFLoader(str(pdf)).load()
             for p in pages:
                 p.page_content = clean_text(p.page_content)
+                # Guardar categoría en metadata de cada página
+                p.metadata["category"] = category
+                p.metadata["filename"] = pdf.name
             documents.extend(pages)
         except Exception as e:
             print(f"  ⚠️ Error: {e}")
@@ -42,14 +51,21 @@ def rebuild():
         print("❌ No se encontraron PDFs en app/data/pdfs/")
         return
 
-    print(f"Páginas cargadas: {len(documents)}")
+    print(f"\nPáginas cargadas: {len(documents)}")
 
     chunks = RecursiveCharacterTextSplitter(
         chunk_size=1000, chunk_overlap=200
     ).split_documents(documents)
     print(f"Chunks generados: {len(chunks)}")
 
-    print("Generando embeddings con FastEmbed (all-MiniLM-L6-v2)...")
+    # Verificar distribución por categoría
+    from collections import Counter
+    cats = Counter(c.metadata.get("category", "?") for c in chunks)
+    print("\nDistribución de chunks por categoría:")
+    for cat, count in sorted(cats.items()):
+        print(f"  {cat}: {count} chunks")
+
+    print("\nGenerando embeddings con FastEmbed...")
     embeddings = FastEmbedEmbeddings(
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
@@ -58,7 +74,7 @@ def rebuild():
     FAISS_DIR.mkdir(parents=True, exist_ok=True)
     vectorstore.save_local(str(FAISS_DIR))
 
-    print(f"✅ Índice guardado en: {FAISS_DIR}")
+    print(f"\n✅ Índice guardado en: {FAISS_DIR}")
     print("Haz: git add app/data/faiss/ && git commit && git push")
 
 if __name__ == "__main__":
