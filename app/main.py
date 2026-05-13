@@ -31,6 +31,10 @@ class ChatRequest(BaseModel):
     question: str
     history: List[dict] = []
 
+class LoginRequest(BaseModel):
+    username: str  # correo o boleta
+    password: str
+
 # --- STARTUP EN BACKGROUND ---
 async def _load_chain_background():
     global chain
@@ -82,6 +86,20 @@ async def health():
         "groq_key": bool(os.getenv("GROQ_API_KEY")),
         "hf_token": bool(os.getenv("HF_TOKEN"))
     }
+
+@app.post("/login")
+async def login(request: LoginRequest):
+    """Valida credenciales de administrador."""
+    admin_users = os.getenv("ADMIN_USERS", "admin@escom.ipn.mx,2024630001").split(",")
+    admin_password = os.getenv("ADMIN_PASSWORD", "escom2026")
+
+    username = request.username.strip().lower()
+    valid_users = [u.strip().lower() for u in admin_users]
+
+    if username not in valid_users or request.password != admin_password:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas.")
+
+    return {"status": "ok", "message": "Acceso concedido."}
 
 @app.get("/upload", response_class=HTMLResponse)
 async def get_upload_page():
