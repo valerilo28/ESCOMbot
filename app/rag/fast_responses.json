@@ -1,14 +1,226 @@
 [
   {
-    "keywords": ["gestion escolar", "control escolar"],
-    "answer": "**Gestión Escolar** se encuentra en el edificio principal o de gobierno de ESCOM."
+    "keywords": ["hola", "buenos días", "buenas tardes", "buenas noches", "hey", "hi"],
+    "answer": "¡Hola! Soy ESCOMbot 👋 Puedo ayudarte con información sobre **becas, servicio social, estancia profesional, temarios y avisos de ESCOM**. ¿En qué te puedo ayudar?"
   },
   {
-    "keywords": ["telefono", "contacto"],
-    "answer": "Puedes contactar a ESCOM en control escolar o en su sitio oficial."
+    "keywords": ["que puedes hacer", "qué puedes hacer", "para qué sirves", "cómo funciona", "ayuda"],
+    "answer": "**Puedo ayudarte con:**\n• 🎓 Becas — convocatorias y requisitos\n• 🤝 Servicio Social — procedimientos y liberación\n• 🏢 Estancia Profesional — acreditación y dictamen\n• 📚 Temarios — bibliografía de materias\n• 📋 Avisos e información institucional de ESCOM"
   },
   {
-    "keywords": ["horario"],
-    "answer": "Los horarios dependen del área, consulta directamente en ventanilla."
+    "keywords": ["gestión escolar", "gestion escolar", "control escolar", "ventanilla escolar"],
+    "answer": "**Gestión Escolar ESCOM**\n• 📍 Edificio 1, Planta Baja\n• ☎️ 57296000 ext. 52001\n• Horario: Lunes a viernes 9:00–18:00 hrs"
+  },
+  {
+    "keywords": ["teléfono escom", "telefono escom", "número escom", "contacto escom"],
+    "answer": "**Contacto ESCOM IPN**\n• ☎️ 57296000 ext. 52001 (Gestión Escolar)\n• 🌐 www.escom.ipn.mx\n• 📍 Av. Juan de Dios Bátiz s/n, Nueva Industrial Vallejo, CDMX"
+  },
+  {
+    "keywords": ["dónde está escom", "donde esta escom", "dirección escom", "ubicación escom", "cómo llegar"],
+    "answer": "**ESCOM IPN**\n• 📍 Av. Juan de Dios Bátiz s/n, Nueva Industrial Vallejo, Gustavo A. Madero, CDMX\n• 🚇 Metro más cercano: Instituto del Petróleo (Línea 6)\n• 🌐 www.escom.ipn.mx"
+  },
+  {
+    "keywords": ["horario gestión", "horario gestion", "horario ventanilla", "horario escolar"],
+    "answer": "**Horario de Gestión Escolar**\n• Lunes a viernes: 9:00 – 18:00 hrs\n• Edificio 1, Planta Baja\n• ☎️ 57296000 ext. 52001"
+  },
+  {
+    "keywords": ["qué es el servicio social", "que es el servicio social", "para qué sirve el servicio social"],
+    "answer": "**Servicio Social** es una actividad obligatoria para titularse.\n• Duración mínima: 6 meses / 480 horas\n• Debes tener al menos el 70% de créditos aprobados\n• Se realiza en instituciones públicas o privadas con convenio con el IPN\n• Al terminar se tramita la liberación en Gestión Escolar"
+  },
+  {
+    "keywords": ["tipos de beca", "qué becas hay", "que becas hay", "becas disponibles", "becas ipn"],
+    "answer": "**Becas disponibles en ESCOM/IPN:**\n• 🎓 Beca Manutención SEP\n• 🎓 Beca IPN (excelencia, apoyo económico)\n• 🎓 Beca Benito Juárez\n• 🎓 Becas de movilidad nacional e internacional\nConsulta convocatorias vigentes en Gestión Escolar o www.ipn.mx/becas"
+  },
+  {
+    "keywords": ["ets", "examen a título de suficiencia", "examen titulo suficiencia"],
+    "answer": "**ETS (Examen a Título de Suficiencia)**\n• Se aplican al final de cada semestre\n• Puedes presentar materias reprobadas o no acreditadas\n• Consulta fechas exactas en el calendario escolar IPN: www.ipn.mx\n• Inscripción en Gestión Escolar"
+  },
+  {
+    "keywords": ["calendario escolar", "fechas importantes", "periodo escolar"],
+    "answer": "El calendario escolar oficial lo publica el IPN cada ciclo.\n• 🌐 Consúltalo en: www.ipn.mx/calendario\n• También en el portal de ESCOM: www.escom.ipn.mx\n• Gestión Escolar puede orientarte sobre fechas específicas"
+  },
+  {
+    "keywords": ["quién puede realizar el servicio social", "quien puede realizar servicio social", "requisitos para servicio social", "puedo hacer servicio social"],
+    "answer": "**¿Quién puede realizar Servicio Social?**\n• Alumnos con el **70% de créditos** aprobados\n• Egresados con el **100% de créditos**\n• Con **dictamen** si tienes 60%+ de créditos, 1er y 2do nivel concluidos y eres regular"
+  },
+  {
+    "keywords": ["cuándo puedo iniciar servicio social", "cuando puedo iniciar servicio social", "fecha inicio servicio social", "cuándo empieza servicio social"],
+    "answer": "**Fechas de inicio de Servicio Social**\n• El periodo inicia el **1 y 16 de cada mes**\n• Si cae en día inhábil (fin de semana o festivo), se recorre a la fecha hábil siguiente\n• Consulta el calendario en la oficina de Servicio Social o su página de Facebook"
+  },
+  {
+    "keywords": ["dónde consultar fechas servicio social", "donde consultar fechas servicio social", "calendario servicio social"],
+    "answer": "**Calendario de Servicio Social**\n• Disponible dentro y fuera de la **oficina de Servicio Social**\n• También en su página de **Facebook**\n• Ahí encontrarás fecha de inicio, término y límite de entrega de documentación"
+  },
+  {
+    "keywords": ["dónde realizar servicio social", "donde hacer servicio social", "dónde puedo hacer servicio social", "en qué lugar servicio social"],
+    "answer": "**¿Dónde puedo realizar mi Servicio Social?**\n• Dependencias de Gobierno (Federal, Estatal o Municipal)\n• Asociaciones Civiles\n• Escuelas o Centros de Investigación del IPN\n• Otras instituciones educativas **con convenio IPN**\n• Aplica tanto si eres becario como si no"
+  },
+  {
+    "keywords": ["convenio ipn", "dependencia convenio", "cómo saber si tiene convenio", "siss ipn", "vacantes servicio social"],
+    "answer": "**¿Cómo saber si una dependencia tiene convenio con el IPN?**\n• Pregunta directamente en el lugar donde quieres hacer tu servicio\n• O busca en internet: **SISS IPN → VACANTES**\n• Ahí encontrarás todas las dependencias con convenio vigente"
+  },
+  {
+    "keywords": ["no tengo 70 por ciento", "no tengo 70%", "menos del 70", "sin 70 créditos servicio social", "dictamen servicio social"],
+    "answer": "**Sin el 70% de créditos puedes iniciar con dictamen si cumples:**\n• ✅ Ser regular (no adeudar materias)\n• ✅ Tener el **60% o más** de créditos\n• ✅ Tener completo el **1er y 2do nivel** del programa académico\nSolicita tu dictamen en la oficina de Servicio Social"
+  },
+  {
+    "keywords": ["papeles dictamen servicio social", "documentos dictamen", "qué entregar para dictamen", "requisitos dictamen servicio social"],
+    "answer": "**Documentos para dictamen de Servicio Social:**\n• 📄 Escrito dirigido a la Comisión de S.S. con motivo, datos completos y firma (original y copia)\n• 📄 Copia de constancia de créditos\n• 📄 Boleta de calificaciones\n*Constancia y boleta se tramitan en Gestión Escolar*"
+  },
+  {
+    "keywords": ["reporte mensual servicio social", "cómo llenar reporte", "como llenar reporte servicio social"],
+    "answer": "**Reporte mensual de Servicio Social**\n• Lo firma tu **responsable directo** (quien te supervisa)\n• Máximo **88 horas por mes**\n• Solo puedes reportar **4 horas diarias**\n• No hay mínimo de horas totales por mes"
+  },
+  {
+    "keywords": ["quién firma reportes", "quien firma reportes servicio social", "responsable directo", "qué es responsable directo"],
+    "answer": "**Responsable directo**\n• Es la persona con quien trabajas directamente\n• Te indica qué hacer y revisa tu trabajo\n• Es quien debe **firmar tus reportes mensuales**"
+  },
+  {
+    "keywords": ["horas servicio social", "máximo horas", "maximo horas servicio social", "cuántas horas reportar"],
+    "answer": "**Horas de Servicio Social:**\n• ⚠️ Máximo **88 horas por mes**\n• ⚠️ Solo puedes reportar **4 horas diarias**\n• No existe un mínimo de horas totales por mes"
+  },
+  {
+    "keywords": ["baja servicio social", "dar de baja servicio social", "cancelar servicio social"],
+    "answer": "**Para darte de baja del Servicio Social:**\n• 1️⃣ Entra a tu sesión del **SISS** y solicita la baja en el sistema\n• 2️⃣ Redacta un **escrito libre** dirigido a la Comisión de S.S. con motivo, datos personales, boleta y firma\n• 3️⃣ Entrega el escrito en la oficina de Servicio Social en **original y copia**"
+  },
+  {
+    "keywords": ["terminé servicio social", "termine servicio social", "ya acabé servicio social", "qué hago al terminar servicio social"],
+    "answer": "**Al terminar tu Servicio Social:**\n• Dirígete a la **oficina de Servicio Social** para consultar requisitos\n• Descarga los formatos de término de servicio\n• Entrega la documentación completa para iniciar el trámite de liberación"
+  },
+  {
+    "keywords": ["cuánto tarda carta liberación", "cuanto tarda liberacion servicio social", "tiempo liberación servicio social", "carta liberación servicio social"],
+    "answer": "**Tiempo de expedición de carta de liberación:**\n• ⚠️ De **3 a 6 meses** después de entregar documentación completa\n• Te avisarán por **correo electrónico** (el registrado en tu carta compromiso)\n• También se publicará la lista en el **Facebook de Servicio Social**"
+  },
+  {
+    "keywords": ["qué es la estancia profesional", "que es la estancia profesional", "qué es estancia", "que es estancia", "para qué sirve la estancia"],
+    "answer": "**Estancia Profesional** es una actividad académica curricular obligatoria.\n• Se realiza en una empresa privada o dependencia gubernamental en el área de TI\n• Permite aplicar competencias profesionales en un ambiente real\n• ⚠️ La empresa NO debe ser de: restaurantes, bares, hoteles, gimnasios, actividades recreativas o instituciones educativas\n• 🌐 Sistema SIEP: https://siep.escom.ipn.mx"
+  },
+  {
+    "keywords": ["requisitos estancia profesional", "requisitos para estancia", "qué necesito para estancia"],
+    "answer": "**Requisitos generales de Estancia Profesional:**\n• ✅ Tener el **100% de créditos** aprobados de 1ro a 5to semestre\n• ✅ Realizarla en empresa privada o dependencia gubernamental de TI\n• ✅ Cumplir un **máximo de 200 horas**\n• ⚠️ Documentación 2026/2: solo del **10 feb al 22 may 2026**"
+  },
+  {
+    "keywords": ["opciones estancia profesional", "cómo hacer estancia", "como hacer estancia", "modalidades estancia"],
+    "answer": "**Opciones para realizar Estancia Profesional:**\n• **A — Empresa NO registrada en UPIS-ESCOM:** Solicita constancia laboral/becario y conserva recibos de pago de las 200 horas\n• **B — Empresa REGISTRADA en UPIS-ESCOM:** Accede al SIEP, consulta el catálogo de vacantes, solicita carta de presentación y carta de aceptación firmada\n• **C — INTERNSHIP académico-empresarial:** Crea cuenta en el SIEP\n• 🌐 https://siep.escom.ipn.mx"
+  },
+  {
+    "keywords": ["empresa no registrada estancia", "opción a estancia", "constancia laboral estancia"],
+    "answer": "**Opción A — Empresa NO registrada en UPIS-ESCOM:**\n• Solicita a tu empresa una **Constancia Laboral, Becario o de Internship**\n• Conserva tus **recibos de pago** (nómina o becario) correspondientes a las 200 horas\n• Sube los documentos al SIEP para acreditación"
+  },
+  {
+    "keywords": ["empresa registrada estancia", "opción b estancia", "catálogo vacantes upis", "carta presentación estancia"],
+    "answer": "**Opción B — Empresa REGISTRADA en UPIS-ESCOM:**\n• 1️⃣ Accede al **SIEP** y consulta el Catálogo de Vacantes\n• 2️⃣ Solicita la **Carta de Presentación** (llega en máx. 3 días hábiles)\n• 3️⃣ Preséntate con tu CV y carta de presentación\n• 4️⃣ Al ser seleccionado, solicita la **Carta de Aceptación** firmada\n• 5️⃣ Al completar 200 horas, solicita la **Constancia de Validación de horas**"
+  },
+  {
+    "keywords": ["documentos acreditación estancia", "qué subir al siep", "documentos estancia profesional", "reporte final estancia"],
+    "answer": "**Documentos para acreditar Estancia Profesional en el SIEP:**\n\n**Opción A:** Constancia laboral/becario • Recibo de pago • Reporte Final de Actividades • Boleta Global\n\n**Opción B:** Carta de aceptación • Carta de validación de horas • Reporte Final firmado por la empresa • Boleta Global\n\n**Opción C:** Carta de aceptación del INTERNSHIP • Reporte Final • Boleta Global"
+  },
+  {
+    "keywords": ["fechas estancia 2026", "plazo estancia 2026", "fecha límite estancia", "cuándo entregar documentos estancia"],
+    "answer": "⚠️ **Fechas importantes Estancia Profesional 2026/2:**\n• Solo se acepta documentación del **10 de febrero al 22 de mayo de 2026**\n• Sube tus documentos al SIEP dentro de ese plazo\n• 🌐 https://siep.escom.ipn.mx"
+  },
+  {
+    "keywords": ["amx contenido", "ctin", "sanborns estancia", "upis presencial"],
+    "answer": "⚠️ **Aviso importante:**\nSi realizas tu estancia en **AMX CONTENIDO, CTIN o Sanborns**, debes acudir **presencialmente a la UPIS** antes de enviar tu solicitud para recibir indicaciones específicas."
+  },
+  {
+    "keywords": ["siep", "sistema estancia", "portal estancia", "plataforma estancia"],
+    "answer": "**SIEP — Sistema de Estancias Profesionales ESCOM**\n• 🌐 https://siep.escom.ipn.mx\n• Aquí gestionas tu solicitud, subes documentos y consultas el catálogo de vacantes\n• Necesitas crear una cuenta para acceder al catálogo"
+  },
+  {
+    "keywords": ["inscripción estancia", "cómo me inscriben estancia", "upis inscripción"],
+    "answer": "**Inscripción a Estancia Profesional:**\n• Una vez que cubras todos los requisitos, la **UPIS** realiza el trámite ante Gestión Escolar\n• Te inscribirán en la Unidad de Aprendizaje de Estancia Profesional\n• Al final del semestre puedes verificar la acreditación en el **SAES**"
+  },
+  {
+    "keywords": ["cuántos pagos beca", "cuantos pagos beca", "cuánto me dan de beca", "monto beca", "cuánto es la beca"],
+    "answer": "**Pagos por tipo de beca:**\n• 🎓 Institucional, Excelencia, Cultural, Deportiva y variantes: **un solo pago**\n• 📱 Excelencia Telmex-Telcel: **depósitos mensuales** desde el mes siguiente a resultados\n• 🌟 Bécalos: **dos pagos** de $3,600 c/u — uno del IPN y otro de Fundación Televisa\nTodos via transferencia a tu cuenta BBVA registrada en SIBec"
+  },
+  {
+    "keywords": ["cuándo depositan beca", "cuando depositan beca", "fecha pago beca", "cuándo me pagan beca"],
+    "answer": "**¿Cuándo depositan la beca?**\n• ⚠️ Primer intento de dispersión: **6 de junio de 2025**\n• O a más tardar **dos semanas antes** de finalizar el periodo lectivo\n• El pago se realiza a la cuenta BBVA registrada en SIBec\n• Consulta el estado de tu pago en https://www.sibec.ipn.mx"
+  },
+  {
+    "keywords": ["cuenta rechazada beca", "rechazo cuenta beca", "beca rechazada", "qué pasa si rechazan mi cuenta"],
+    "answer": "**Cuenta bancaria rechazada:**\n• SIBec te notificará con estado **'rechazado'**\n• Tienes **3 días hábiles** para corregir tu CLABE interbancaria\n• Si es rechazada por **segunda vez** → ⚠️ **SE REVOCA LA BECA**\n• Verifica en https://www.sibec.ipn.mx"
+  },
+  {
+    "keywords": ["plazo cuenta bancaria beca", "cuándo capturar cuenta beca", "fecha cuenta bancaria beca", "plazo registrar cuenta beca"],
+    "answer": "**Plazo para registrar cuenta bancaria:**\n• ⚠️ Del **19 al 23 de mayo de 2025**\n• Si no capturas en ese plazo → **SE REVOCA LA BECA**\n• Sube también tu expediente bancario en SIBec\n• Consulta el Manual de captura en https://www.sibec.ipn.mx"
+  },
+  {
+    "keywords": ["expediente bancario beca mayor de edad", "documentos cuenta bancaria beca", "qué documentos cuenta beca"],
+    "answer": "**Expediente bancario para beca:**\n\n**Mayor de edad:**\n• Estado de cuenta BBVA a tu nombre (vigencia máx. 3 meses)\n\n**Menor de edad** (mayoría de edad después del 06/03/2025):\n• Estado de cuenta del padre/madre/tutor (máx. 3 meses)\n• INE ambos lados del titular\n• Carta de autorización de dispersión firmada con tinta azul"
+  },
+  {
+    "keywords": ["otra cuenta beca", "cuenta de otro banco beca", "no tengo bbva beca", "puedo usar otro banco beca"],
+    "answer": "**Cuenta bancaria para beca:**\n• ❌ Solo se acepta cuenta **BBVA** (débito o ahorros)\n• ❌ No puedes registrar cuenta de otra persona si eres mayor de edad\n• ✅ Menores de edad pueden usar cuenta de padre/madre/tutor con carta de autorización\n• La cuenta debe recibir transferencias sin límite de depósitos"
+  },
+  {
+    "keywords": ["gracias", "muchas gracias", "thank you", "ok gracias"],
+    "answer": "¡Con gusto! 😊 Si tienes más dudas sobre trámites de ESCOM, aquí estaré."
+  },
+  {
+    "keywords": ["adiós", "adios", "hasta luego", "bye", "chao", "nos vemos"],
+    "answer": "¡Hasta luego! 👋 Recuerda que puedes consultarme cuando necesites información sobre trámites de ESCOM."
+  },
+  {
+    "keywords": ["requisitos generales beca", "requisitos para beca", "qué necesito para beca", "cómo obtener beca"],
+    "answer": "**Requisitos generales para beca IPN:**\n• ✅ Nacionalidad mexicana\n• ✅ Estar inscrito en programa académico del IPN\n• ✅ Ser estudiante regular\n• ✅ No tener otro beneficio económico federal para el mismo fin\n• ✅ Cuenta bancaria BBVA débito/ahorros a tu nombre\n• ✅ Correo institucional y teléfono vigente registrados en https://www.sibec.ipn.mx"
+  },
+  {
+    "keywords": ["tipos de beca", "qué becas hay", "que becas hay", "becas disponibles", "becas ipn", "becas que ofrece"],
+    "answer": "**Becas disponibles en el IPN:**\n• 🎓 Beca Institucional\n• 🏆 Beca Excelencia (promedio 9.0–9.5)\n• 🎨 Beca Cultural / Carmen de la Fuente\n• ⚽ Beca Deportiva / Jacinto Licea\n• 📱 Beca Excelencia Telmex-Telcel\n• 🌟 Beca Bécalos (Fundación Televisa)\nConsulta convocatoria vigente en www.ipn.mx/daes"
+  },
+  {
+    "keywords": ["beca institucional requisitos", "requisitos beca institucional"],
+    "answer": "**Beca Institucional — Requisitos:**\n• Promedio mínimo **7.0**\n• Inscrito en programa IPN (escolarizada, no escolarizada o mixta)\n• Ser estudiante regular\n• Primer ingreso o cambio de programa: presentar certificado del nivel anterior"
+  },
+  {
+    "keywords": ["beca excelencia requisitos", "requisitos beca excelencia"],
+    "answer": "**Beca Excelencia — Requisitos:**\n• Inscrito en nivel superior del IPN\n• Ser estudiante regular\n• Promedio mínimo: **9.0** (Ciencias Médico Biológicas y Físico Matemáticas) o **9.5** (Ciencias Sociales y Administrativas)\n• Haber cursado al menos el **30% de créditos** del programa"
+  },
+  {
+    "keywords": ["beca cultural requisitos", "requisitos beca cultural"],
+    "answer": "**Beca Cultural — Requisitos:**\n• Promedio mínimo **7.0**\n• Regular o con adeudo de hasta **2 materias**\n• Participar en actividad artístico-cultural avalada por la DDC del IPN\n• La actividad debe estar dada de alta en el SAES"
+  },
+  {
+    "keywords": ["beca deportiva requisitos", "requisitos beca deportiva"],
+    "answer": "**Beca Deportiva — Requisitos:**\n• Promedio mínimo **7.0**\n• Ser estudiante regular\n• Participar en disciplina deportiva avalada por la DAD del IPN\n• La actividad debe estar dada de alta en el SAES"
+  },
+  {
+    "keywords": ["beca becalos requisitos", "requisitos becalos", "beca televisa"],
+    "answer": "**Beca Bécalos (Fundación Televisa) — Requisitos:**\n• Nacionalidad mexicana\n• Inscrito en nivel superior IPN modalidad escolarizada\n• Haber sido becario Bécalos en el periodo anterior (25/1)\n• Promedio mínimo **8.0** (Ing. y Ciencias) o **8.5** (Ciencias Sociales)\n• Ser estudiante regular"
+  },
+  {
+    "keywords": ["cuándo registrarse beca", "cuando registrarse beca", "fechas registro beca", "periodo registro beca"],
+    "answer": "**Fechas de registro de becas:**\n• ⚠️ Del **7 al 14 de marzo de 2025**\n• ENCB: del **21 al 28 de marzo de 2025**\n• Registro en: https://www.sibec.ipn.mx\n• Consulta fechas actualizadas en www.ipn.mx/daes"
+  },
+  {
+    "keywords": ["resultados beca", "cuándo salen resultados beca", "cuando publican resultados beca"],
+    "answer": "**Resultados de becas:**\n• Se publican a partir del **16 de mayo de 2025**\n• Consúltalos en tu sesión de https://www.sibec.ipn.mx\n• También en www.ipn.mx/daes y en la página de tu unidad académica"
+  },
+  {
+    "keywords": ["sibec", "sistema becas", "cómo registrarse sibec", "como registrarse sibec"],
+    "answer": "**Registro en SIBec:**\n• 1️⃣ Entra a https://www.sibec.ipn.mx\n• 2️⃣ Clic en **REGÍSTRATE** (parte inferior derecha)\n• 3️⃣ Ingresa tu correo institucional y número de boleta\n• 4️⃣ Valida tu información — si hay error, acude con el responsable de becas\n• 5️⃣ Recibirás tu contraseña al correo institucional"
+  },
+  {
+    "keywords": ["renovar beca", "renovación beca", "se renueva sola la beca", "beca automática"],
+    "answer": "**Renovación de beca:**\n• Las convocatorias duran **6 meses** (un periodo escolar)\n• ⚠️ NO se renuevan automáticamente\n• Cada semestre debes hacer una **nueva solicitud** y cumplir los requisitos vigentes\n• Revisa la convocatoria en www.ipn.mx/daes"
+  },
+  {
+    "keywords": ["dos becas", "doble beca", "puedo tener dos becas", "becas simultáneas"],
+    "answer": "**¿Puedo tener 2 becas?**\n• ❌ No, si ambas provienen de recursos federales para el mismo fin\n• ✅ Excepción: BEIFI es compatible con Beca Benito Juárez, Beca Jóvenes Escribiendo el Futuro y Beca de estímulo para Servicio Social"
+  },
+  {
+    "keywords": ["revocación beca", "me pueden quitar la beca", "causas revocación beca", "perder beca"],
+    "answer": "**Causas de revocación de beca:**\n• Incumplir requisitos de la convocatoria\n• Falsedad en información o documentos alterados\n• Duplicidad de beca no reportada\n• Dos intentos de depósito rechazados\n• No registrar cuenta bancaria en tiempo\n• Baja temporal o definitiva del programa\n• Renuncia voluntaria mediante escrito a la Secretaría Técnica del Comité de Becas"
+  },
+  {
+    "keywords": ["contacto becas", "dudas becas", "correo becas", "responsable becas"],
+    "answer": "**Contacto para dudas sobre becas:**\n• 👤 Primer contacto: **Responsable de Becas** de tu Unidad Académica\n• 📧 Otorgamiento y validación: becas@ipn.mx\n• 📧 Pago y cuenta bancaria: dpbcp.dap@ipn.mx"
+  },
+  {
+    "keywords": ["cuenta bancaria beca", "bbva beca", "qué banco beca"],
+    "answer": "**Cuenta bancaria para beca:**\n• Debe ser cuenta **BBVA** de débito o ahorros\n• Debes ser **titular** de la cuenta\n• Menores de edad pueden registrar cuenta de madre, padre o tutor\n• Debe permitir depósitos/transferencias mayores al monto total de la beca\n• Sin límite de depósitos al mes"
   }
 ]
