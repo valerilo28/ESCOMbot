@@ -193,6 +193,11 @@
                 </div>
             </div>
 
+            <div class="field">
+                <label>4. Contraseña de administrador</label>
+                <input type="password" id="adminPassword" placeholder="Contraseña" required>
+            </div>
+
             <button type="submit" id="submitBtn">⬆️ Subir y clasificar</button>
         </form>
 
@@ -234,6 +239,7 @@
             formData.append('category', document.getElementById('category').value);
             formData.append('year', document.getElementById('year').value);
             formData.append('semester', document.getElementById('semester').value);
+            formData.append('password', document.getElementById('adminPassword').value);
 
             try {
                 const res = await fetch(`${BASE_URL}/upload_pdf`, {

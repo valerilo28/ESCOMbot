@@ -95,9 +95,15 @@ async def upload_pdf(
     file: UploadFile = File(...),
     category: str = Form(...),
     year: str = Form(...),
-    semester: str = Form(...)
+    semester: str = Form(...),
+    password: str = Form(...)
 ):
     global chain
+
+    # Validar contraseña de administrador
+    admin_password = os.getenv("ADMIN_PASSWORD", "escom2026")
+    if password != admin_password:
+        raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
     try:
         content = await file.read()
         filename = f"{category}_{year}-{semester}_{file.filename.replace(' ', '_')}"
