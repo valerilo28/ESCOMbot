@@ -31,11 +31,9 @@ def build_vectorstore():
     if not documents:
         raise ValueError("No hay documentos para indexar")
 
-    from langchain_google_genai import GoogleGenerativeAIEmbeddings
-    import os
-    embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
-        google_api_key=os.getenv("GOOGLE_API_KEY")
+    from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+    embeddings = FastEmbedEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=300)
