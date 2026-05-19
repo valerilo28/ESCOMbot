@@ -137,20 +137,15 @@ async def upload_pdf(
             from app.storage.supabase_client import get_supabase
             client = get_supabase()
             client.storage.from_("pdfs").upload(filename, content)
-            print(f"[SUPABASE] ✅ Subido: {filename}")
+            print(f"[SUPABASE] ✅ PDF subido: {filename}")
         except Exception as e_supa:
-            print(f"[SUPABASE] ⚠️ No se pudo subir a Supabase (continuando): {e_supa}")
+            print(f"[SUPABASE] ⚠️ No se pudo subir a Supabase: {e_supa}")
 
-        # 3. Reconstruir vectorstore con el nuevo PDF ya en disco
-        loop = asyncio.get_event_loop()
-        from app.rag.vectorstore import build_vectorstore
-        await loop.run_in_executor(None, build_vectorstore)
+        # 3. NO reconstruimos vectorstore en Render (OOM en free tier 512MB)
+        # El índice se reconstruye localmente con rebuild_index.py y se sube a Supabase
+        # Render descarga el índice actualizado en el próximo arranque
 
-        # 4. Recargar chain
-        from app.rag.chain import load_chain
-        chain = load_chain()
-
-        return {"message": f"Archivo {filename} cargado con éxito."}
+        return {"message": f"✅ Archivo {filename} guardado. Reconstruye el índice localmente con rebuild_index.py y haz push para actualizar el chatbot."}
     except Exception as e:
         import traceback
         print(traceback.format_exc())

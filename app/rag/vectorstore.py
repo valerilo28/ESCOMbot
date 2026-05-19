@@ -31,9 +31,11 @@ def build_vectorstore():
     if not documents:
         raise ValueError("No hay documentos para indexar")
 
-    from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-    embeddings = FastEmbedEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    from langchain_cohere import CohereEmbeddings
+    import os
+    embeddings = CohereEmbeddings(
+        model="embed-multilingual-light-v3.0",
+        cohere_api_key=os.getenv("COHERE_API_KEY")
     )
 
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1500, chunk_overlap=300)

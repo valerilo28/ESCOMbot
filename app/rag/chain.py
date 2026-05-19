@@ -3,7 +3,6 @@ import time
 import datetime
 from pathlib import Path
 from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from langchain_groq import ChatGroq
 import json
 import re
@@ -109,9 +108,13 @@ def load_chain():
     print(f"[CHAIN] Buscando FAISS en: {FAISS_DIR}")
     print(f"[CHAIN] FAISS existe: {FAISS_DIR.exists()}")
 
-    # 1. FastEmbed — ligero, sin torch, sin APIs externas (~50MB)
-    embeddings = FastEmbedEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2"
+    # Cohere Embeddings — API externa, sin modelo local, sin memoria pesada
+    from langchain_cohere import CohereEmbeddings
+    cohere_key = os.getenv("COHERE_API_KEY")
+    print(f"[CHAIN] COHERE_API_KEY presente: {bool(cohere_key)}")
+    embeddings = CohereEmbeddings(
+        model="embed-multilingual-light-v3.0",  # modelo ligero, soporta español
+        cohere_api_key=cohere_key
     )
     print("[CHAIN] Embeddings listos.")
 
