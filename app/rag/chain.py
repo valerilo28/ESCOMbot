@@ -32,7 +32,6 @@ except FileNotFoundError:
     HORARIOS = {}
 
 def buscar_horario_profesor(query: str) -> str:
-    """Busca el horario de un profesor por nombre parcial."""
     if not HORARIOS:
         return None
     query_upper = query.upper()
@@ -40,9 +39,10 @@ def buscar_horario_profesor(query: str) -> str:
     resultados = []
     for nombre, clases in HORARIOS.items():
         if any(palabra in nombre for palabra in palabras):
-            dias_str = []
-            for c in clases:
-                dias_str.append(f"• {c['dia']} {c['entrada']}-{c['salida']} — {c['materia']} (Salón {c['salon']})")
+            dias_str = [
+                f"• {c['dia']} {c['entrada']}-{c['salida']} — {c['materia']} (Salón {c['salon']})"
+                for c in clases
+            ]
             resultados.append(f"**{nombre.title()}:**\n" + "\n".join(dias_str))
     if resultados:
         return "\n\n".join(resultados[:2])
@@ -60,29 +60,17 @@ def fast_response(question: str):
     return None
 
 def fix_incomplete_answer(answer: str) -> str:
-    """Limpia y estructura la respuesta antes de enviarla."""
     answer = answer.strip()
-
-    # Quitar markdown de código si el modelo lo mete
     answer = re.sub(r'```[\w]*\n?', '', answer).strip()
-
-    # Normalizar viñetas — convertir -, *, • a •
     answer = re.sub(r'^[\-\*]\s+', '• ', answer, flags=re.MULTILINE)
-
-    # Asegurar salto de línea antes de cada viñeta
     answer = re.sub(r'(?<!\n)(• )', r'\n\1', answer)
-
-    # Colapsar más de 2 saltos de línea seguidos
     answer = re.sub(r'\n{3,}', '\n\n', answer)
-
-    # Si termina incompleto, cortar en la última oración completa
     if not answer.endswith((".", "!", "?", ":")):
         sentences = re.split(r'(?<=[.!?]) +', answer)
         if len(sentences) > 1:
             answer = " ".join(sentences[:-1])
         else:
             answer = answer + "..."
-
     return answer.strip()
 
 def can_call_model():
@@ -108,23 +96,38 @@ def is_continuation(question: str) -> bool:
     return question.lower().strip() in CONTINUATION_TRIGGERS
 
 def expand_question(question: str, history: list) -> str:
-    """Si la pregunta es una continuación, la reformula con contexto del historial."""
     if not is_continuation(question) or not history:
         return question
-    # Tomar la última pregunta del usuario como contexto
     last_user_q = history[-1].get("user", "") if history else ""
     if last_user_q:
         return f"{last_user_q} — proporciona más detalles o información adicional"
     return question
 
 def classify_question(question: str) -> str:
+    """Clasifica la pregunta en una categoría para filtrar el vectorstore."""
     q = question.lower()
-    if "beca" in q:
-        return "becas"
-    elif "servicio social" in q or "servicio_social" in q:
+
+    # Servicio social — ampliado con más variantes
+    if any(w in q for w in [
+        "servicio social", "servicio_social", "ss ", " ss,", "liberar servicio",
+        "liberación servicio", "baja servicio", "art 91", "artículo 91",
+        "carta de presentación servicio", "dictamen electiva", "dictamen menos 70"
+    ]):
         return "servicio_social"
-    elif "estancia" in q:
+
+    # Estancia profesional — ampliado
+    elif any(w in q for w in [
+        "estancia", "estancia profesional", "acreditación estancia",
+        "requisitos estancia", "dictamen estancia", "empresa estancia",
+        "carta estancia", "reporte estancia"
+    ]):
         return "estancia_profesional"
+
+    # Becas
+    elif any(w in q for w in ["beca", "becas", "convocatoria beca", "apoyo económico"]):
+        return "becas"
+
+    # Temarios
     elif any(w in q for w in [
         "temario", "bibliograf", "materia", "unidad de aprendizaje",
         "libro", "autor", "isbn", "editorial", "temas de", "contenido de",
@@ -133,11 +136,14 @@ def classify_question(question: str) -> str:
         "automatas", "autómatas", "computación", "discretas"
     ]):
         return "temario"
+
+    # General institucional
     elif any(w in q for w in [
         "historia", "misión", "visión", "carrera", "fundada", "cosecovi",
         "academia", "ubicación", "dirección", "correo escom"
     ]):
         return "general"
+
     return ""
 
 def load_chain():
@@ -145,17 +151,15 @@ def load_chain():
     print(f"[CHAIN] Buscando FAISS en: {FAISS_DIR}")
     print(f"[CHAIN] FAISS existe: {FAISS_DIR.exists()}")
 
-    # Cohere Embeddings — API externa, sin modelo local, sin memoria pesada
     from langchain_cohere import CohereEmbeddings
     cohere_key = os.getenv("COHERE_API_KEY")
     print(f"[CHAIN] COHERE_API_KEY presente: {bool(cohere_key)}")
     embeddings = CohereEmbeddings(
-        model="embed-multilingual-light-v3.0",  # modelo ligero, soporta español
+        model="embed-multilingual-light-v3.0",
         cohere_api_key=cohere_key
     )
     print("[CHAIN] Embeddings listos.")
 
-    # 2. Cargar FAISS
     try:
         vectorstore = FAISS.load_local(
             str(FAISS_DIR),
@@ -167,29 +171,24 @@ def load_chain():
         print(f"[CHAIN] ❌ Error cargando FAISS: {e}")
         return None
 
-    # 3. Configurar LLM con fallback de keys y modelos
-    # Orden: intenta cada key con el modelo principal, luego baja de modelo
     GROQ_KEYS = [
         os.getenv("GROQ_API_KEY", "").strip(),
         os.getenv("GROQ_API_KEY_2", "").strip(),
         os.getenv("GROQ_API_KEY_3", "").strip(),
     ]
     GROQ_MODELS = [
-        "llama-3.1-8b-instant",   # más rápido
-        "llama3-8b-8192",          # fallback 1
-        "gemma2-9b-it",            # fallback 2
+        "llama-3.1-8b-instant",
+        "llama3-8b-8192",
+        "gemma2-9b-it",
     ]
-    GROQ_KEYS = [k for k in GROQ_KEYS if k]  # quitar vacías
+    GROQ_KEYS = [k for k in GROQ_KEYS if k]
 
     print(f"[CHAIN] GROQ keys disponibles: {len(GROQ_KEYS)}")
-    print(f"[CHAIN] GROQ modelos en orden: {GROQ_MODELS}")
 
     if not GROQ_KEYS:
         print("[CHAIN] ❌ No hay GROQ_API_KEY configurada")
         return None
 
-    # Crear lista de (key, modelo) en orden de prioridad
-    # Primero todas las keys con el modelo 1, luego con modelo 2, etc.
     _llm_options = [
         (key, model)
         for model in GROQ_MODELS
@@ -204,45 +203,42 @@ def load_chain():
             api_key=key
         )
 
-    # LLM inicial con la primera key y modelo
     llm = _create_llm(GROQ_KEYS[0], GROQ_MODELS[0])
     print(f"[CHAIN] ✅ LLM Groq listo: {GROQ_MODELS[0]}")
 
     def _get_docs(question: str, category: str = None):
-        """Recupera documentos filtrando por categoría en metadata."""
-        if category:
-            # Buscar solo dentro de la categoría indicada
-            retriever = vectorstore.as_retriever(
-                search_kwargs={
-                    "k": 4,
-                    "filter": {"category": category}
-                }
-            )
-        else:
-            # Sin filtro — detectar categoría automáticamente
-            detected = classify_question(question)
-            if detected:
-                retriever = vectorstore.as_retriever(
-                    search_kwargs={
-                        "k": 4,
-                        "filter": {"category": detected}
-                    }
-                )
-            else:
-                retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
+        """Recupera documentos. Si hay categoría, filtra por ella.
+        Si el filtro no retorna resultados, hace búsqueda sin filtro como fallback.
+        """
+        detected = category or classify_question(question)
 
+        if detected:
+            # Intento 1: con filtro por categoría
+            try:
+                retriever = vectorstore.as_retriever(
+                    search_kwargs={"k": 5, "filter": {"category": detected}}
+                )
+                docs = retriever.invoke(question)
+                if docs:
+                    print(f"[CHAIN] ✅ {len(docs)} docs encontrados con filtro category={detected}")
+                    return docs
+                else:
+                    print(f"[CHAIN] ⚠️ Filtro category={detected} sin resultados — usando búsqueda global")
+            except Exception as e:
+                print(f"[CHAIN] ⚠️ Error con filtro: {e} — usando búsqueda global")
+
+        # Fallback: búsqueda sin filtro (más amplia)
+        retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
         docs = retriever.invoke(question)
+        print(f"[CHAIN] Búsqueda global: {len(docs)} docs")
         return docs
 
-    # 4. Función interna de la chain
     def chain(question: str, history_from_app: list = None, force_category: str = None):
         if not can_call_model():
             return "Por favor, espera un momento antes de enviar otra pregunta."
 
-        # Expandir preguntas de continuación antes de cachear
         expanded = expand_question(question, history_from_app or [])
 
-        # No cachear preguntas de continuación — siempre buscar más info
         cache_key = f"{force_category or ''}:{expanded.lower().strip()}"
         if not is_continuation(question) and cache_key in _response_cache:
             return _response_cache[cache_key]
@@ -251,9 +247,8 @@ def load_chain():
         if fast:
             return fast
 
-        # Buscar horario de profesor si la pregunta lo pide
         q_lower = question.lower()
-        if any(w in q_lower for w in ["horario", "clase", "salón", "salon", "dónde da clase", "cuándo da clase", "horario del profesor", "horario de"]):
+        if any(w in q_lower for w in ["horario", "clase", "salón", "salon", "dónde da clase", "cuándo da clase"]):
             horario = buscar_horario_profesor(question)
             if horario:
                 return f"**Horario encontrado:**\n{horario}"
@@ -262,13 +257,16 @@ def load_chain():
             fecha_actual = datetime.datetime.now().strftime("%B %Y")
             periodo_actual = get_current_period()
 
-            # Usar la pregunta expandida para buscar
             docs = _get_docs(expanded, category=force_category)
 
             if not docs:
-                return "No tengo información sobre eso. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
+                return "No tengo información sobre eso en este momento. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
 
-            context_text = "\n---\n".join(d.page_content for d in docs[:3])
+            context_text = "\n---\n".join(d.page_content for d in docs[:4])
+
+            # Incluir de qué archivos vienen los docs (útil para depurar)
+            sources = list({d.metadata.get("filename", "?") for d in docs})
+            print(f"[CHAIN] Fuentes usadas: {sources}")
 
             history_text = ""
             if history_from_app:
@@ -277,44 +275,51 @@ def load_chain():
                     for h in history_from_app[-3:]
                 ])
 
-            # Ajustar instrucciones según categoría
-            if force_category == "temario":
+            # Detectar categoría para ajustar instrucciones
+            detected_cat = force_category or classify_question(question)
+
+            if detected_cat == "temario":
                 topic_instruction = """Responde sobre temarios y bibliografía de materias de ESCOM IPN.
 Cuando pregunten por una materia, proporciona:
 1. Los temas principales que se estudian
 2. La bibliografía básica recomendada (autor, año, título, editorial/ISBN)
 3. Recursos digitales si los hay
-NO menciones que es el temario de una carrera específica, solo di que es el programa de estudios de ESCOM."""
+NO menciones que es el temario de una carrera específica."""
                 out_of_scope = "Solo puedo ayudarte con temarios y bibliografía de materias de ESCOM."
+            elif detected_cat == "servicio_social":
+                topic_instruction = "Responde SOLO sobre servicio social de ESCOM IPN. Usa el contexto proporcionado."
+                out_of_scope = "Solo puedo ayudarte con temas de servicio social, becas, estancia y avisos de ESCOM."
+            elif detected_cat == "estancia_profesional":
+                topic_instruction = "Responde SOLO sobre estancia profesional de ESCOM IPN. Usa el contexto proporcionado."
+                out_of_scope = "Solo puedo ayudarte con temas de estancia, servicio social, becas y avisos de ESCOM."
             else:
                 topic_instruction = "Responde SOLO sobre becas, servicio social, estancia profesional e información institucional de ESCOM."
                 out_of_scope = "Solo puedo ayudarte con becas, servicio social, estancia profesional y avisos institucionales."
 
             continuation_note = ""
             if is_continuation(question):
-                continuation_note = "\nNOTA: El usuario pide MÁS información sobre el tema anterior. NO repitas lo que ya dijiste en el historial. Proporciona detalles adicionales, pasos siguientes o información complementaria.\n"
+                continuation_note = "\nNOTA: El usuario pide MÁS información sobre el tema anterior. NO repitas lo que ya dijiste. Proporciona detalles adicionales o pasos siguientes.\n"
 
             prompt = f"""Eres ESCOMbot, asistente oficial de ESCOM IPN. {topic_instruction}
 {continuation_note}
 FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
 ═══ REGLAS DE FORMATO (OBLIGATORIAS) ═══
-1. ESTRUCTURA: Usa SIEMPRE este orden:
+1. ESTRUCTURA:
    - Primera línea: resumen en **negrita** (máx. 10 palabras)
-   - Luego lista con viñetas (•), UNA por línea, con salto de línea entre cada una
-   - Nunca escribas párrafos largos corridos
+   - Lista con viñetas (•), UNA por línea
+   - Sin párrafos largos
 
-2. VIÑETAS: Cada punto en su propia línea así:
+2. VIÑETAS — cada punto en su propia línea:
    • Punto uno
    • Punto dos
-   • Punto tres
 
-3. LÍMITES: Máximo 5 viñetas. Máximo 100 palabras en total.
+3. LÍMITES: Máximo 5 viñetas. Máximo 120 palabras en total.
 
 4. FECHAS: Resáltalas con ⚠️ Ej: ⚠️ Fecha límite: 22 de mayo
 
-5. FUERA DE CONTEXTO: Si no está en el CONTEXTO, responde exactamente:
-   "No tengo esa información. Acude a Gestión Escolar (Edificio 1, PB) o llama al 57296000 ext. 52001."
+5. USA EL CONTEXTO: Si la respuesta está en el CONTEXTO de abajo, ÚSALA aunque la pregunta esté formulada de forma diferente.
+   Solo responde "No tengo esa información" si el contexto realmente no contiene datos relevantes.
 
 6. VIGENCIA: Si el documento es de otro ciclo: "⚠️ Dato de periodo anterior — verifica vigencia:"
 
@@ -322,7 +327,7 @@ FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
 8. TONO: Directo. Sin "Claro que sí", sin "Por supuesto", sin introducción.
 
-═══ CONTEXTO ═══
+═══ CONTEXTO (documentos recuperados) ═══
 {context_text}
 
 ═══ HISTORIAL ═══
@@ -331,9 +336,8 @@ FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 ═══ PREGUNTA ═══
 {question}
 
-RESPUESTA (sigue el formato exacto, máximo 100 palabras):"""
+RESPUESTA (sigue el formato exacto, máximo 120 palabras):"""
 
-            # E. Ejecutar con fallback de keys y modelos
             response = None
             last_error = None
             for key, model in _llm_options:
@@ -345,7 +349,7 @@ RESPUESTA (sigue el formato exacto, máximo 100 palabras):"""
                 except Exception as e:
                     err_str = str(e)
                     if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "rate_limit" in err_str.lower():
-                        print(f"[CHAIN] Rate limit key={key[:20]}... modelo={model}, probando siguiente...")
+                        print(f"[CHAIN] Rate limit — probando siguiente...")
                         last_error = e
                         continue
                     else:
@@ -355,7 +359,6 @@ RESPUESTA (sigue el formato exacto, máximo 100 palabras):"""
                 return "El servicio de IA alcanzó su límite temporalmente. Intenta de nuevo en unos minutos."
 
             answer = fix_incomplete_answer(response.content)
-            # Solo cachear preguntas normales, no continuaciones
             if not is_continuation(question):
                 _response_cache[cache_key] = answer
             return answer
@@ -363,7 +366,6 @@ RESPUESTA (sigue el formato exacto, máximo 100 palabras):"""
         except Exception as e:
             import traceback
             print(f"[ERROR DETALLADO]\n{traceback.format_exc()}")
-            print(f"[GROQ_API_KEY presente]: {bool(os.getenv('GROQ_API_KEY'))}")
             return "Lo siento, hubo un error técnico al procesar la pregunta."
 
     return chain
