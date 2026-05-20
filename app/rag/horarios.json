@@ -1,0 +1,38 @@
+{
+  "profesores": {
+    "AGUILAR GARCIA RAFAEL": [
+      {"dia": "Lunes", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2207"},
+      {"dia": "Martes", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2209"},
+      {"dia": "Miércoles", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2209"},
+      {"dia": "Jueves", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2207"},
+      {"dia": "Viernes", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2209"},
+      {"dia": "Viernes", "entrada": "08:30", "salida": "10:00", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2207"}
+    ],
+    "ALBORTANTE MORATO CECILIA": [
+      {"dia": "Lunes", "entrada": "07:00", "salida": "08:30", "materia": "TEORIA DE LA COMPUTACION", "salon": "2005"},
+      {"dia": "Lunes", "entrada": "08:30", "salida": "10:00", "materia": "TEORÍA DE LA COMPUTACIÓN", "salon": "3011"},
+      {"dia": "Lunes", "entrada": "10:30", "salida": "12:00", "materia": "ALGORITMOS Y ESTRUCTURA DE DATOS", "salon": "1013"},
+      {"dia": "Martes", "entrada": "07:00", "salida": "08:30", "materia": "FUNDAMENTOS DE PROGRAMACIÓN", "salon": "1203"},
+      {"dia": "Martes", "entrada": "08:30", "salida": "10:00", "materia": "ALGORITMOS Y ESTRUCTURA DE DATOS", "salon": "1013"},
+      {"dia": "Martes", "entrada": "10:30", "salida": "12:00", "materia": "ANALISIS Y DISEÑO DE ALGORITMOS", "salon": "2211"},
+      {"dia": "Miércoles", "entrada": "07:00", "salida": "08:30", "materia": "FUNDAMENTOS DE PROGRAMACIÓN", "salon": "1203"},
+      {"dia": "Miércoles", "entrada": "08:30", "salida": "10:00", "materia": "TEORÍA DE LA COMPUTACIÓN", "salon": "3011"},
+      {"dia": "Miércoles", "entrada": "10:30", "salida": "12:00", "materia": "ANALISIS Y DISEÑO DE ALGORITMOS", "salon": "2211"},
+      {"dia": "Jueves", "entrada": "07:00", "salida": "08:30", "materia": "TEORIA DE LA COMPUTACION", "salon": "2005"},
+      {"dia": "Jueves", "entrada": "08:30", "salida": "10:00", "materia": "TEORÍA DE LA COMPUTACIÓN", "salon": "3011"},
+      {"dia": "Jueves", "entrada": "10:30", "salida": "12:00", "materia": "ALGORITMOS Y ESTRUCTURA DE DATOS", "salon": "1013"},
+      {"dia": "Viernes", "entrada": "07:00", "salida": "08:30", "materia": "FUNDAMENTOS DE PROGRAMACIÓN", "salon": "1203"},
+      {"dia": "Viernes", "entrada": "08:30", "salida": "10:00", "materia": "TEORIA DE LA COMPUTACION", "salon": "2005"},
+      {"dia": "Viernes", "entrada": "10:30", "salida": "12:00", "materia": "ANALISIS Y DISEÑO DE ALGORITMOS", "salon": "2211"}
+    ],
+    "ORTIGOZA CAMPOS ANDRES": [
+      {"dia": "Lunes", "entrada": "08:30", "salida": "10:00", "materia": "COMPILADORES", "salon": "3108"},
+      {"dia": "Lunes", "entrada": "10:30", "salida": "12:00", "materia": "METODOS NUMERICOS", "salon": "2203"},
+      {"dia": "Martes", "entrada": "08:30", "salida": "10:00", "materia": "METODOS NUMERICOS", "salon": "2203"},
+      {"dia": "Miércoles", "entrada": "08:30", "salida": "10:00", "materia": "COMPILADORES", "salon": "3108"},
+      {"dia": "Miércoles", "entrada": "13:30", "salida": "15:00", "materia": "METODOS NUMERICOS", "salon": "2203"},
+      {"dia": "Jueves", "entrada": "08:30", "salida": "10:00", "materia": "COMPILADORES", "salon": "3108"},
+      {"dia": "Jueves", "entrada": "10:30", "salida": "12:00", "materia": "METODOS NUMERICOS", "salon": "2203"}
+    ]
+  }
+}

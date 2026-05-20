@@ -16,6 +16,7 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent.parent
 FAISS_DIR = BASE_DIR / "data" / "faiss"
 FAST_RESPONSES_PATH = BASE_DIR / "rag" / "fast_responses.json"
+HORARIOS_PATH = BASE_DIR / "rag" / "horarios.json"
 
 try:
     with open(FAST_RESPONSES_PATH, "r", encoding="utf-8") as f:
@@ -23,6 +24,29 @@ try:
 except FileNotFoundError:
     print(f"[WARN] fast_responses.json no encontrado")
     FAST_RESPONSES = []
+
+try:
+    with open(HORARIOS_PATH, "r", encoding="utf-8") as f:
+        HORARIOS = json.load(f).get("profesores", {})
+except FileNotFoundError:
+    HORARIOS = {}
+
+def buscar_horario_profesor(query: str) -> str:
+    """Busca el horario de un profesor por nombre parcial."""
+    if not HORARIOS:
+        return None
+    query_upper = query.upper()
+    palabras = [p for p in query_upper.split() if len(p) > 3]
+    resultados = []
+    for nombre, clases in HORARIOS.items():
+        if any(palabra in nombre for palabra in palabras):
+            dias_str = []
+            for c in clases:
+                dias_str.append(f"• {c['dia']} {c['entrada']}-{c['salida']} — {c['materia']} (Salón {c['salon']})")
+            resultados.append(f"**{nombre.title()}:**\n" + "\n".join(dias_str))
+    if resultados:
+        return "\n\n".join(resultados[:2])
+    return None
 
 _response_cache: dict = {}
 last_call_time = 0
@@ -92,15 +116,28 @@ def expand_question(question: str, history: list) -> str:
     if last_user_q:
         return f"{last_user_q} — proporciona más detalles o información adicional"
     return question
+
+def classify_question(question: str) -> str:
     q = question.lower()
     if "beca" in q:
         return "becas"
-    elif "servicio" in q:
+    elif "servicio social" in q or "servicio_social" in q:
         return "servicio_social"
     elif "estancia" in q:
         return "estancia_profesional"
-    elif any(w in q for w in ["temario", "bibliograf", "materia", "unidad de aprendizaje", "libro", "autor"]):
+    elif any(w in q for w in [
+        "temario", "bibliograf", "materia", "unidad de aprendizaje",
+        "libro", "autor", "isbn", "editorial", "temas de", "contenido de",
+        "teoría de", "cálculo", "álgebra", "programación", "compiladores",
+        "redes", "sistemas operativos", "bases de datos", "algoritmos",
+        "automatas", "autómatas", "computación", "discretas"
+    ]):
         return "temario"
+    elif any(w in q for w in [
+        "historia", "misión", "visión", "carrera", "fundada", "cosecovi",
+        "academia", "ubicación", "dirección", "correo escom"
+    ]):
+        return "general"
     return ""
 
 def load_chain():
@@ -130,20 +167,46 @@ def load_chain():
         print(f"[CHAIN] ❌ Error cargando FAISS: {e}")
         return None
 
-    # 3. Validar Groq y crear LLM
-    groq_key = os.getenv("GROQ_API_KEY")
-    print(f"[CHAIN] GROQ_API_KEY presente: {bool(groq_key)}")
-    if not groq_key:
-        print("[CHAIN] ❌ GROQ_API_KEY no configurada")
+    # 3. Configurar LLM con fallback de keys y modelos
+    # Orden: intenta cada key con el modelo principal, luego baja de modelo
+    GROQ_KEYS = [
+        os.getenv("GROQ_API_KEY", "").strip(),
+        os.getenv("GROQ_API_KEY_2", "").strip(),
+        os.getenv("GROQ_API_KEY_3", "").strip(),
+    ]
+    GROQ_MODELS = [
+        "llama-3.1-8b-instant",   # más rápido
+        "llama3-8b-8192",          # fallback 1
+        "gemma2-9b-it",            # fallback 2
+    ]
+    GROQ_KEYS = [k for k in GROQ_KEYS if k]  # quitar vacías
+
+    print(f"[CHAIN] GROQ keys disponibles: {len(GROQ_KEYS)}")
+    print(f"[CHAIN] GROQ modelos en orden: {GROQ_MODELS}")
+
+    if not GROQ_KEYS:
+        print("[CHAIN] ❌ No hay GROQ_API_KEY configurada")
         return None
 
-    llm = ChatGroq(
-        model="llama-3.1-8b-instant",
-        temperature=0.0,
-        max_tokens=400,
-        api_key=groq_key
-    )
-    print("[CHAIN] ✅ LLM Groq listo.")
+    # Crear lista de (key, modelo) en orden de prioridad
+    # Primero todas las keys con el modelo 1, luego con modelo 2, etc.
+    _llm_options = [
+        (key, model)
+        for model in GROQ_MODELS
+        for key in GROQ_KEYS
+    ]
+
+    def _create_llm(key: str, model: str):
+        return ChatGroq(
+            model=model,
+            temperature=0.0,
+            max_tokens=700,
+            api_key=key
+        )
+
+    # LLM inicial con la primera key y modelo
+    llm = _create_llm(GROQ_KEYS[0], GROQ_MODELS[0])
+    print(f"[CHAIN] ✅ LLM Groq listo: {GROQ_MODELS[0]}")
 
     def _get_docs(question: str, category: str = None):
         """Recupera documentos filtrando por categoría en metadata."""
@@ -188,6 +251,13 @@ def load_chain():
         if fast:
             return fast
 
+        # Buscar horario de profesor si la pregunta lo pide
+        q_lower = question.lower()
+        if any(w in q_lower for w in ["horario", "clase", "salón", "salon", "dónde da clase", "cuándo da clase", "horario del profesor", "horario de"]):
+            horario = buscar_horario_profesor(question)
+            if horario:
+                return f"**Horario encontrado:**\n{horario}"
+
         try:
             fecha_actual = datetime.datetime.now().strftime("%B %Y")
             periodo_actual = get_current_period()
@@ -209,8 +279,13 @@ def load_chain():
 
             # Ajustar instrucciones según categoría
             if force_category == "temario":
-                topic_instruction = "Responde SOLO sobre bibliografía y contenido de temarios de unidades de aprendizaje de ESCOM."
-                out_of_scope = "Solo puedo ayudarte con bibliografía y temarios de materias."
+                topic_instruction = """Responde sobre temarios y bibliografía de materias de ESCOM IPN.
+Cuando pregunten por una materia, proporciona:
+1. Los temas principales que se estudian
+2. La bibliografía básica recomendada (autor, año, título, editorial/ISBN)
+3. Recursos digitales si los hay
+NO menciones que es el temario de una carrera específica, solo di que es el programa de estudios de ESCOM."""
+                out_of_scope = "Solo puedo ayudarte con temarios y bibliografía de materias de ESCOM."
             else:
                 topic_instruction = "Responde SOLO sobre becas, servicio social, estancia profesional e información institucional de ESCOM."
                 out_of_scope = "Solo puedo ayudarte con becas, servicio social, estancia profesional y avisos institucionales."
@@ -258,7 +333,27 @@ FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
 RESPUESTA (sigue el formato exacto, máximo 100 palabras):"""
 
-            response = llm.invoke(prompt)
+            # E. Ejecutar con fallback de keys y modelos
+            response = None
+            last_error = None
+            for key, model in _llm_options:
+                try:
+                    current_llm = _create_llm(key, model)
+                    response = current_llm.invoke(prompt)
+                    print(f"[CHAIN] Respondió con modelo={model}")
+                    break
+                except Exception as e:
+                    err_str = str(e)
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "rate_limit" in err_str.lower():
+                        print(f"[CHAIN] Rate limit key={key[:20]}... modelo={model}, probando siguiente...")
+                        last_error = e
+                        continue
+                    else:
+                        raise
+
+            if response is None:
+                return "El servicio de IA alcanzó su límite temporalmente. Intenta de nuevo en unos minutos."
+
             answer = fix_incomplete_answer(response.content)
             # Solo cachear preguntas normales, no continuaciones
             if not is_continuation(question):
