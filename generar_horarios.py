@@ -1,72 +1,58 @@
 """
-Genera app/rag/horarios.json desde el Excel de horarios.
-Requiere: pip install openpyxl
-
-Uso:
-    python generar_horarios.py horarios-v5.xlsx
+Genera horarios.json desde el Excel horarios_v5.xlsx
+Uso: python generar_horarios.py
+Coloca este script en la raíz del proyecto (junto a rebuild_index.py)
 """
+import openpyxl
 import json
-import sys
 from pathlib import Path
+from collections import defaultdict
 
-def generar(excel_path: str):
-    try:
-        import openpyxl
-    except ImportError:
-        print("Instala openpyxl: pip install openpyxl")
+EXCEL_PATH = Path(__file__).resolve().parent / "horarios_v5.xlsx"
+OUTPUT_PATH = Path(__file__).resolve().parent / "app" / "rag" / "horarios.json"
+
+def fmt_hora(t):
+    if t is None:
+        return "?"
+    if hasattr(t, 'strftime'):
+        return t.strftime("%H:%M")
+    return str(t).strip()
+
+def generar():
+    if not EXCEL_PATH.exists():
+        print(f"❌ No se encontró el Excel en: {EXCEL_PATH}")
+        print("   Asegúrate de que horarios_v5.xlsx esté en la raíz del proyecto.")
         return
 
-    wb = openpyxl.load_workbook(excel_path)
-    ws = wb.active
+    wb = openpyxl.load_workbook(str(EXCEL_PATH), read_only=True)
+    ws = wb['Horarios']
 
-    profesores = {}
-    headers = None
+    profesores = defaultdict(list)
+    total = 0
 
-    for row in ws.iter_rows(values_only=True):
-        if headers is None:
-            # Buscar fila de encabezados
-            if row and "Profesor" in str(row):
-                headers = [str(c).strip() if c else "" for c in row]
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row[0]:
             continue
+        profesor, dia, entrada, salida, materia, salon = row
+        profesores[profesor.strip()].append({
+            "dia": str(dia).strip() if dia else "?",
+            "entrada": fmt_hora(entrada),
+            "salida": fmt_hora(salida),
+            "materia": str(materia).strip() if materia else "?",
+            "salon": str(salon).strip() if salon else "?"
+        })
+        total += 1
 
-        if not row or not row[0]:
-            continue
+    result = {"profesores": dict(profesores)}
 
-        try:
-            # Mapear columnas por nombre
-            idx = {h: i for i, h in enumerate(headers)}
-            profesor = str(row[idx.get("Profesor", 0)] or "").strip().upper()
-            dia      = str(row[idx.get("Día", 1)] or "").strip()
-            entrada  = str(row[idx.get("Hora Entrada", 2)] or "").strip()
-            salida   = str(row[idx.get("Hora Salida", 3)] or "").strip()
-            materia  = str(row[idx.get("Materia", 4)] or "").strip()
-            salon    = str(row[idx.get("Salón", 5)] or "").strip()
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
 
-            if not profesor or not dia:
-                continue
-
-            if profesor not in profesores:
-                profesores[profesor] = []
-
-            profesores[profesor].append({
-                "dia": dia,
-                "entrada": entrada,
-                "salida": salida,
-                "materia": materia,
-                "salon": salon
-            })
-        except Exception as e:
-            continue
-
-    output = Path("app/rag/horarios.json")
-    with open(output, "w", encoding="utf-8") as f:
-        json.dump({"profesores": profesores}, f, ensure_ascii=False, indent=2)
-
-    print(f"✅ Generado: {output}")
+    print(f"✅ horarios.json generado")
     print(f"   Profesores: {len(profesores)}")
+    print(f"   Registros:  {total}")
+    print(f"   Guardado en: {OUTPUT_PATH}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Uso: python generar_horarios.py horarios-v5.xlsx")
-    else:
-        generar(sys.argv[1])
+    generar()

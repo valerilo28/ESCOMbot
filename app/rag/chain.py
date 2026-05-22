@@ -17,40 +17,158 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 FAISS_DIR = BASE_DIR / "data" / "faiss"
 FAST_RESPONSES_PATH = BASE_DIR / "rag" / "fast_responses.json"
 HORARIOS_PATH = BASE_DIR / "rag" / "horarios.json"
+LINKS_PATH = BASE_DIR / "rag" / "links.json"
 
+# --- CARGAR DATOS ---
 try:
     with open(FAST_RESPONSES_PATH, "r", encoding="utf-8") as f:
         FAST_RESPONSES = json.load(f)
 except FileNotFoundError:
-    print(f"[WARN] fast_responses.json no encontrado")
+    print("[WARN] fast_responses.json no encontrado")
     FAST_RESPONSES = []
 
 try:
     with open(HORARIOS_PATH, "r", encoding="utf-8") as f:
         HORARIOS = json.load(f).get("profesores", {})
+    print(f"[CHAIN] Horarios cargados: {len(HORARIOS)} profesores")
 except FileNotFoundError:
     HORARIOS = {}
+    print("[WARN] horarios.json no encontrado")
 
-def buscar_horario_profesor(query: str) -> str:
-    if not HORARIOS:
-        return None
-    query_upper = query.upper()
-    palabras = [p for p in query_upper.split() if len(p) > 3]
-    resultados = []
-    for nombre, clases in HORARIOS.items():
-        if any(palabra in nombre for palabra in palabras):
-            dias_str = [
-                f"• {c['dia']} {c['entrada']}-{c['salida']} — {c['materia']} (Salón {c['salon']})"
-                for c in clases
-            ]
-            resultados.append(f"**{nombre.title()}:**\n" + "\n".join(dias_str))
-    if resultados:
-        return "\n\n".join(resultados[:2])
-    return None
+try:
+    with open(LINKS_PATH, "r", encoding="utf-8") as f:
+        LINKS_DATA = json.load(f)
+except FileNotFoundError:
+    LINKS_DATA = {}
+    print("[WARN] links.json no encontrado")
 
 _response_cache: dict = {}
 last_call_time = 0
 
+# ─────────────────────────────────────────────
+#  VALIDACIÓN — detectar si la pregunta es basura
+# ─────────────────────────────────────────────
+def es_pregunta_valida(question: str) -> bool:
+    """Rechaza entradas que no son preguntas reales: texto aleatorio, muy corto sin sentido, etc."""
+    q = question.strip()
+    # Muy corta (< 3 chars)
+    if len(q) < 3:
+        return False
+    # Solo números
+    if q.isdigit():
+        return False
+    # Mayoría de caracteres no son letras ni espacios (texto aleatorio tipo "dlkdo", "asdfgh")
+    letras = sum(1 for c in q if c.isalpha())
+    if len(q) > 3 and letras / len(q) < 0.6:
+        return False
+    # Palabras sin sentido: si tiene solo 1 "palabra" de 3-8 chars sin vocales
+    palabras = q.lower().split()
+    if len(palabras) == 1:
+        p = palabras[0]
+        vocales = sum(1 for c in p if c in "aeiouáéíóú")
+        if len(p) >= 4 and vocales == 0:
+            return False
+        # Palabras tipo "dlkdo", "asdfg" — demasiadas consonantes seguidas
+        if len(p) >= 4 and vocales / len(p) < 0.2:
+            return False
+    return True
+
+
+# ─────────────────────────────────────────────
+#  HORARIOS
+# ─────────────────────────────────────────────
+STOP_WORDS_HORARIO = {
+    "horario", "del", "de", "la", "el", "los", "las", "profesor", "profesora",
+    "maestra", "maestro", "profe", "donde", "dónde", "salón", "salon",
+    "clase", "clases", "da", "tiene", "cuando", "cuándo", "en", "qué", "que",
+    "está", "esta", "cuál", "cual", "dar", "imparte", "dicta"
+}
+
+def buscar_horario_profesor(query: str) -> str | None:
+    if not HORARIOS:
+        return None
+
+    palabras_busqueda = [
+        w.upper() for w in query.split()
+        if len(w) > 2 and w.lower() not in STOP_WORDS_HORARIO
+    ]
+    if not palabras_busqueda:
+        return None
+
+    resultados = []
+    for nombre, clases in HORARIOS.items():
+        nombre_upper = nombre.upper()
+        if any(word in nombre_upper for word in palabras_busqueda):
+            orden_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+            por_dia = {}
+            for c in clases:
+                dia = c["dia"]
+                if dia not in por_dia:
+                    por_dia[dia] = []
+                por_dia[dia].append(
+                    f"  ⏰ {c['entrada']}–{c['salida']} | {c['materia']} | 📍 Salón {c['salon']}"
+                )
+            lineas = [f"**{nombre.title()}**"]
+            for dia in orden_dias:
+                if dia in por_dia:
+                    lineas.append(f"• {dia}:")
+                    lineas.extend(por_dia[dia])
+            resultados.append("\n".join(lineas))
+
+    if resultados:
+        return "\n\n".join(resultados[:2])
+    return None
+
+
+def es_pregunta_de_horario(query: str) -> bool:
+    q = query.lower()
+    triggers = [
+        "horario", "salón", "salon", "dónde da clase", "donde da clase",
+        "cuándo da clase", "cuando da clase", "horario del profesor",
+        "horario de ", "a qué hora", "a que hora", "qué día da",
+        "que dia da", "dónde está el profesor", "donde esta el profesor",
+        "ubicación del profesor", "dónde imparte", "donde imparte"
+    ]
+    return any(t in q for t in triggers)
+
+
+# ─────────────────────────────────────────────
+#  LINKS
+# ─────────────────────────────────────────────
+def buscar_link(query: str) -> str | None:
+    if not LINKS_DATA:
+        return None
+    q = query.lower()
+    keywords_map = LINKS_DATA.get("keywords", {})
+    secciones = {
+        **LINKS_DATA.get("institucionales", {}),
+        **LINKS_DATA.get("tramites", {}),
+        **LINKS_DATA.get("apoyo_estudiantil", {}),
+    }
+    encontrados = []
+    for key, palabras in keywords_map.items():
+        if any(p in q for p in palabras):
+            link_data = secciones.get(key)
+            if link_data:
+                encontrados.append(f"• {link_data['nombre']}: {link_data['url']}")
+    if encontrados:
+        return "**Links relevantes:**\n" + "\n".join(encontrados)
+    return None
+
+
+def es_pregunta_de_link(query: str) -> bool:
+    q = query.lower()
+    triggers = [
+        "link", "página", "pagina", "portal", "sitio", "web", "url",
+        "dirección web", "dónde entro", "donde entro", "cómo accedo",
+        "como accedo", "dónde me registro", "donde me registro"
+    ]
+    return any(t in q for t in triggers)
+
+
+# ─────────────────────────────────────────────
+#  RESPUESTAS RÁPIDAS
+# ─────────────────────────────────────────────
 def fast_response(question: str):
     q = question.lower()
     for item in FAST_RESPONSES:
@@ -59,19 +177,21 @@ def fast_response(question: str):
                 return item["answer"]
     return None
 
+
+# ─────────────────────────────────────────────
+#  UTILIDADES
+# ─────────────────────────────────────────────
 def fix_incomplete_answer(answer: str) -> str:
     answer = answer.strip()
     answer = re.sub(r'```[\w]*\n?', '', answer).strip()
     answer = re.sub(r'^[\-\*]\s+', '• ', answer, flags=re.MULTILINE)
     answer = re.sub(r'(?<!\n)(• )', r'\n\1', answer)
     answer = re.sub(r'\n{3,}', '\n\n', answer)
-    if not answer.endswith((".", "!", "?", ":")):
+    if not answer.endswith((".", "!", "?", ":", ")")):
         sentences = re.split(r'(?<=[.!?]) +', answer)
-        if len(sentences) > 1:
-            answer = " ".join(sentences[:-1])
-        else:
-            answer = answer + "..."
+        answer = " ".join(sentences[:-1]) if len(sentences) > 1 else answer + "..."
     return answer.strip()
+
 
 def can_call_model():
     global last_call_time
@@ -81,10 +201,12 @@ def can_call_model():
     last_call_time = now
     return True
 
+
 def get_current_period():
     now = datetime.datetime.now()
     semester = "2" if 2 <= now.month <= 7 else "1"
     return f"{now.year}-{semester}"
+
 
 CONTINUATION_TRIGGERS = {
     "más", "mas", "más información", "más detalles", "continúa", "continua",
@@ -92,181 +214,193 @@ CONTINUATION_TRIGGERS = {
     "explica más", "detalla", "cuéntame más", "otro", "otra", "siguiente"
 }
 
+
 def is_continuation(question: str) -> bool:
     return question.lower().strip() in CONTINUATION_TRIGGERS
+
 
 def expand_question(question: str, history: list) -> str:
     if not is_continuation(question) or not history:
         return question
     last_user_q = history[-1].get("user", "") if history else ""
-    if last_user_q:
-        return f"{last_user_q} — proporciona más detalles o información adicional"
-    return question
+    return f"{last_user_q} — proporciona más detalles o información adicional" if last_user_q else question
+
 
 def classify_question(question: str) -> str:
-    """Clasifica la pregunta en una categoría para filtrar el vectorstore."""
+    """Clasifica con prioridad correcta: estancia ANTES que servicio social."""
     q = question.lower()
 
-    # Servicio social — ampliado con más variantes
+    # Estancia profesional — primero, porque "estancia" no debe clasificarse como servicio social
     if any(w in q for w in [
-        "servicio social", "servicio_social", "ss ", " ss,", "liberar servicio",
-        "liberación servicio", "baja servicio", "art 91", "artículo 91",
-        "carta de presentación servicio", "dictamen electiva", "dictamen menos 70"
-    ]):
-        return "servicio_social"
-
-    # Estancia profesional — ampliado
-    elif any(w in q for w in [
-        "estancia", "estancia profesional", "acreditación estancia",
+        "estancia profesional", "estancia", "acreditación estancia",
         "requisitos estancia", "dictamen estancia", "empresa estancia",
-        "carta estancia", "reporte estancia"
+        "carta estancia", "reporte estancia", "siep", "horas estancia",
+        "cuántas horas estancia", "cuantas horas estancia",
+        "documentos estancia", "qué pasa si reprueban reporte",
+        "extranjero estancia", "opción a", "opción b", "opción c"
     ]):
         return "estancia_profesional"
 
+    # Servicio social
+    elif any(w in q for w in [
+        "servicio social", "servicio_social", "liberar servicio",
+        "liberación servicio", "baja servicio", "art 91", "artículo 91",
+        "carta de presentación servicio", "dictamen electiva", "siss",
+        "reporte mensual", "responsable directo", "480 horas"
+    ]):
+        return "servicio_social"
+
     # Becas
-    elif any(w in q for w in ["beca", "becas", "convocatoria beca", "apoyo económico"]):
+    elif any(w in q for w in ["beca", "becas", "sibec", "convocatoria beca", "apoyo económico"]):
         return "becas"
 
     # Temarios
     elif any(w in q for w in [
         "temario", "bibliograf", "materia", "unidad de aprendizaje",
         "libro", "autor", "isbn", "editorial", "temas de", "contenido de",
-        "teoría de", "cálculo", "álgebra", "programación", "compiladores",
-        "redes", "sistemas operativos", "bases de datos", "algoritmos",
+        "cálculo", "álgebra", "programación", "compiladores", "redes",
+        "sistemas operativos", "bases de datos", "algoritmos",
         "automatas", "autómatas", "computación", "discretas"
     ]):
         return "temario"
 
-    # General institucional
     elif any(w in q for w in [
         "historia", "misión", "visión", "carrera", "fundada", "cosecovi",
-        "academia", "ubicación", "dirección", "correo escom"
+        "academia", "ubicación escom", "dirección escom"
     ]):
         return "general"
 
     return ""
 
+
+# ─────────────────────────────────────────────
+#  LOAD CHAIN
+# ─────────────────────────────────────────────
 def load_chain():
     print(f"[CHAIN] BASE_DIR: {BASE_DIR}")
-    print(f"[CHAIN] Buscando FAISS en: {FAISS_DIR}")
-    print(f"[CHAIN] FAISS existe: {FAISS_DIR.exists()}")
+    print(f"[CHAIN] FAISS: {FAISS_DIR} — existe: {FAISS_DIR.exists()}")
 
     from langchain_cohere import CohereEmbeddings
     cohere_key = os.getenv("COHERE_API_KEY")
-    print(f"[CHAIN] COHERE_API_KEY presente: {bool(cohere_key)}")
     embeddings = CohereEmbeddings(
         model="embed-multilingual-light-v3.0",
         cohere_api_key=cohere_key
     )
-    print("[CHAIN] Embeddings listos.")
 
     try:
         vectorstore = FAISS.load_local(
-            str(FAISS_DIR),
-            embeddings,
-            allow_dangerous_deserialization=True
+            str(FAISS_DIR), embeddings, allow_dangerous_deserialization=True
         )
-        print("[CHAIN] ✅ FAISS cargado correctamente.")
+        print("[CHAIN] ✅ FAISS cargado.")
     except Exception as e:
-        print(f"[CHAIN] ❌ Error cargando FAISS: {e}")
+        print(f"[CHAIN] ❌ Error FAISS: {e}")
         return None
 
-    GROQ_KEYS = [
-        os.getenv("GROQ_API_KEY", "").strip(),
-        os.getenv("GROQ_API_KEY_2", "").strip(),
-        os.getenv("GROQ_API_KEY_3", "").strip(),
-    ]
-    GROQ_MODELS = [
-        "llama-3.1-8b-instant",
-        "llama3-8b-8192",
-        "gemma2-9b-it",
-    ]
-    GROQ_KEYS = [k for k in GROQ_KEYS if k]
+    GROQ_KEYS = [k.strip() for k in [
+        os.getenv("GROQ_API_KEY", ""),
+        os.getenv("GROQ_API_KEY_2", ""),
+        os.getenv("GROQ_API_KEY_3", ""),
+    ] if k.strip()]
 
-    print(f"[CHAIN] GROQ keys disponibles: {len(GROQ_KEYS)}")
+    GROQ_MODELS = ["llama-3.1-8b-instant", "llama3-8b-8192", "gemma2-9b-it"]
 
     if not GROQ_KEYS:
-        print("[CHAIN] ❌ No hay GROQ_API_KEY configurada")
+        print("[CHAIN] ❌ Sin GROQ_API_KEY")
         return None
 
-    _llm_options = [
-        (key, model)
-        for model in GROQ_MODELS
-        for key in GROQ_KEYS
-    ]
+    _llm_options = [(key, model) for model in GROQ_MODELS for key in GROQ_KEYS]
 
-    def _create_llm(key: str, model: str):
-        return ChatGroq(
-            model=model,
-            temperature=0.0,
-            max_tokens=700,
-            api_key=key
-        )
+    def _create_llm(key, model):
+        return ChatGroq(model=model, temperature=0.0, max_tokens=700, api_key=key)
 
-    llm = _create_llm(GROQ_KEYS[0], GROQ_MODELS[0])
-    print(f"[CHAIN] ✅ LLM Groq listo: {GROQ_MODELS[0]}")
+    print(f"[CHAIN] ✅ LLM listo. Keys: {len(GROQ_KEYS)}")
 
     def _get_docs(question: str, category: str = None):
-        """Recupera documentos. Si hay categoría, filtra por ella.
-        Si el filtro no retorna resultados, hace búsqueda sin filtro como fallback.
-        """
+        """Busca con filtro de categoría; si no encuentra, hace búsqueda global."""
         detected = category or classify_question(question)
 
         if detected:
-            # Intento 1: con filtro por categoría
             try:
-                retriever = vectorstore.as_retriever(
-                    search_kwargs={"k": 5, "filter": {"category": detected}}
-                )
-                docs = retriever.invoke(question)
+                docs = vectorstore.as_retriever(
+                    search_kwargs={"k": 6, "filter": {"category": detected}}
+                ).invoke(question)
                 if docs:
-                    print(f"[CHAIN] ✅ {len(docs)} docs encontrados con filtro category={detected}")
+                    print(f"[CHAIN] ✅ {len(docs)} docs — category={detected}")
                     return docs
-                else:
-                    print(f"[CHAIN] ⚠️ Filtro category={detected} sin resultados — usando búsqueda global")
+                print(f"[CHAIN] ⚠️ Sin docs con filtro={detected} — búsqueda global")
             except Exception as e:
-                print(f"[CHAIN] ⚠️ Error con filtro: {e} — usando búsqueda global")
+                print(f"[CHAIN] ⚠️ Error filtro: {e}")
 
-        # Fallback: búsqueda sin filtro (más amplia)
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-        docs = retriever.invoke(question)
+        docs = vectorstore.as_retriever(search_kwargs={"k": 5}).invoke(question)
         print(f"[CHAIN] Búsqueda global: {len(docs)} docs")
         return docs
 
+    # ── CHAIN PRINCIPAL ──
     def chain(question: str, history_from_app: list = None, force_category: str = None):
         if not can_call_model():
             return "Por favor, espera un momento antes de enviar otra pregunta."
 
-        expanded = expand_question(question, history_from_app or [])
+        # ── 1. VALIDAR que la pregunta tiene sentido ──
+        if not es_pregunta_valida(question):
+            return (
+                "No entendí tu mensaje. 😅\n"
+                "Puedo ayudarte con:\n"
+                "• Becas\n"
+                "• Servicio Social\n"
+                "• Estancia Profesional\n"
+                "• Temarios y bibliografía\n"
+                "• Horarios de profesores\n"
+                "¿En qué te puedo ayudar?"
+            )
 
+        expanded = expand_question(question, history_from_app or [])
         cache_key = f"{force_category or ''}:{expanded.lower().strip()}"
+
         if not is_continuation(question) and cache_key in _response_cache:
             return _response_cache[cache_key]
 
+        # ── 2. RESPUESTAS RÁPIDAS ──
         fast = fast_response(question)
         if fast:
             return fast
 
-        q_lower = question.lower()
-        if any(w in q_lower for w in ["horario", "clase", "salón", "salon", "dónde da clase", "cuándo da clase"]):
+        # ── 3. HORARIO DE PROFESOR ──
+        if es_pregunta_de_horario(question):
             horario = buscar_horario_profesor(question)
             if horario:
-                return f"**Horario encontrado:**\n{horario}"
+                return horario
+            # Intentar con palabras de la pregunta directamente
+            return (
+                "No encontré ese profesor. Verifica el apellido o nombre completo.\n"
+                "Ejemplo: *'horario de García Aguilar'*\n"
+                "🌐 También puedes consultar: https://www.escom.ipn.mx"
+            )
+
+        # ── 4. LINKS DIRECTOS ──
+        if es_pregunta_de_link(question):
+            link_resp = buscar_link(question)
+            if link_resp:
+                return link_resp
 
         try:
-            fecha_actual = datetime.datetime.now().strftime("%B %Y")
+            fecha_actual = datetime.datetime.now().strftime("%d de %B de %Y")
             periodo_actual = get_current_period()
 
             docs = _get_docs(expanded, category=force_category)
 
             if not docs:
-                return "No tengo información sobre eso en este momento. Acude a Gestión Escolar (Edificio 1, Planta Baja) o llama al 57296000 ext. 52001."
+                link_resp = buscar_link(question)
+                if link_resp:
+                    return f"No encontré información detallada, pero aquí tienes:\n{link_resp}"
+                return (
+                    "No tengo información sobre eso.\n"
+                    "Acude a Gestión Escolar (Edificio 1, Planta Baja) "
+                    "o llama al 57296000 ext. 52001."
+                )
 
-            context_text = "\n---\n".join(d.page_content for d in docs[:4])
-
-            # Incluir de qué archivos vienen los docs (útil para depurar)
+            context_text = "\n---\n".join(d.page_content for d in docs[:5])
             sources = list({d.metadata.get("filename", "?") for d in docs})
-            print(f"[CHAIN] Fuentes usadas: {sources}")
+            print(f"[CHAIN] Fuentes: {sources}")
 
             history_text = ""
             if history_from_app:
@@ -275,97 +409,115 @@ def load_chain():
                     for h in history_from_app[-3:]
                 ])
 
-            # Detectar categoría para ajustar instrucciones
             detected_cat = force_category or classify_question(question)
 
-            if detected_cat == "temario":
-                topic_instruction = """Responde sobre temarios y bibliografía de materias de ESCOM IPN.
-Cuando pregunten por una materia, proporciona:
-1. Los temas principales que se estudian
-2. La bibliografía básica recomendada (autor, año, título, editorial/ISBN)
-3. Recursos digitales si los hay
-NO menciones que es el temario de una carrera específica."""
-                out_of_scope = "Solo puedo ayudarte con temarios y bibliografía de materias de ESCOM."
+            if detected_cat == "estancia_profesional":
+                topic_instruction = (
+                    "Responde SOLO sobre estancia profesional de ESCOM IPN. "
+                    "La estancia profesional es diferente al servicio social: "
+                    "es una materia curricular, se realiza en empresa privada o gobierno, "
+                    "requiere 200 horas y el sistema es el SIEP (https://siep.escom.ipn.mx). "
+                    "NO confundas con servicio social."
+                )
+                out_of_scope = "Solo puedo ayudarte con temas de estancia profesional de ESCOM."
             elif detected_cat == "servicio_social":
-                topic_instruction = "Responde SOLO sobre servicio social de ESCOM IPN. Usa el contexto proporcionado."
-                out_of_scope = "Solo puedo ayudarte con temas de servicio social, becas, estancia y avisos de ESCOM."
-            elif detected_cat == "estancia_profesional":
-                topic_instruction = "Responde SOLO sobre estancia profesional de ESCOM IPN. Usa el contexto proporcionado."
-                out_of_scope = "Solo puedo ayudarte con temas de estancia, servicio social, becas y avisos de ESCOM."
+                topic_instruction = (
+                    "Responde SOLO sobre servicio social de ESCOM IPN. "
+                    "El servicio social requiere mínimo 480 horas en 6 meses, "
+                    "el sistema es el SISS, y gestiona la UPIS."
+                )
+                out_of_scope = "Solo puedo ayudarte con temas de servicio social de ESCOM."
+            elif detected_cat == "temario":
+                topic_instruction = (
+                    "Responde sobre temarios y bibliografía de materias de ESCOM IPN. "
+                    "Proporciona temas principales y bibliografía recomendada (autor, año, título, ISBN)."
+                )
+                out_of_scope = "Solo puedo ayudarte con temarios y bibliografía de ESCOM."
+            elif detected_cat == "becas":
+                topic_instruction = "Responde sobre becas del IPN y ESCOM usando el contexto."
+                out_of_scope = "Solo puedo ayudarte con becas de IPN/ESCOM."
             else:
-                topic_instruction = "Responde SOLO sobre becas, servicio social, estancia profesional e información institucional de ESCOM."
-                out_of_scope = "Solo puedo ayudarte con becas, servicio social, estancia profesional y avisos institucionales."
+                topic_instruction = "Responde sobre becas, servicio social, estancia profesional e información institucional de ESCOM."
+                out_of_scope = "Solo puedo ayudarte con trámites e información de ESCOM."
 
             continuation_note = ""
             if is_continuation(question):
-                continuation_note = "\nNOTA: El usuario pide MÁS información sobre el tema anterior. NO repitas lo que ya dijiste. Proporciona detalles adicionales o pasos siguientes.\n"
+                continuation_note = "\nNOTA: El usuario pide MÁS información. NO repitas lo ya dicho. Da detalles adicionales.\n"
 
-            prompt = f"""Eres ESCOMbot, asistente oficial de ESCOM IPN. {topic_instruction}
+            prompt = f"""Eres ESCOMbot, asistente oficial de ESCOM IPN.
+{topic_instruction}
 {continuation_note}
 FECHA ACTUAL: {fecha_actual} | CICLO: {periodo_actual}
 
-═══ REGLAS DE FORMATO (OBLIGATORIAS) ═══
-1. ESTRUCTURA:
+═══ REGLAS OBLIGATORIAS ═══
+1. FORMATO:
    - Primera línea: resumen en **negrita** (máx. 10 palabras)
-   - Lista con viñetas (•), UNA por línea
-   - Sin párrafos largos
+   - Lista de viñetas (•), UNA por línea con salto de línea entre cada una
+   - Sin párrafos largos corridos
 
-2. VIÑETAS — cada punto en su propia línea:
+2. VIÑETAS — cada punto en su línea:
    • Punto uno
    • Punto dos
 
-3. LÍMITES: Máximo 5 viñetas. Máximo 120 palabras en total.
+3. LÍMITES: Máximo 6 viñetas. Máximo 150 palabras.
 
-4. FECHAS: Resáltalas con ⚠️ Ej: ⚠️ Fecha límite: 22 de mayo
+4. FECHAS LÍMITE: Si el contexto tiene fechas, SIEMPRE inclúyelas con ⚠️
+   Ejemplo: ⚠️ Fecha límite: 22 de mayo de 2026
 
-5. USA EL CONTEXTO: Si la respuesta está en el CONTEXTO de abajo, ÚSALA aunque la pregunta esté formulada de forma diferente.
-   Solo responde "No tengo esa información" si el contexto realmente no contiene datos relevantes.
+5. LINKS: Si el trámite tiene sistema en línea, incluye el link al final con 🔗
+   Ejemplo: 🔗 Sistema: https://siep.escom.ipn.mx
 
-6. VIGENCIA: Si el documento es de otro ciclo: "⚠️ Dato de periodo anterior — verifica vigencia:"
+6. USA EL CONTEXTO: Si la respuesta está en el CONTEXTO, ÚSALA aunque la pregunta esté redactada diferente.
+   SOLO di "No tengo esa información" si el contexto genuinamente no tiene datos relevantes.
 
-7. FUERA DE TEMA: "{out_of_scope}"
+7. VIGENCIA: Si el documento es de otro ciclo escolar: ⚠️ Dato de periodo anterior — verifica vigencia.
 
-8. TONO: Directo. Sin "Claro que sí", sin "Por supuesto", sin introducción.
+8. FUERA DE TEMA: "{out_of_scope}"
 
-═══ CONTEXTO (documentos recuperados) ═══
+9. TONO: Directo. Sin "Claro que sí", sin "Por supuesto", sin introducción.
+
+═══ CONTEXTO (documentos recuperados de los PDFs) ═══
 {context_text}
 
 ═══ HISTORIAL ═══
 {history_text}
 
-═══ PREGUNTA ═══
+═══ PREGUNTA DEL USUARIO ═══
 {question}
 
-RESPUESTA (sigue el formato exacto, máximo 120 palabras):"""
+RESPUESTA (máximo 150 palabras, viñetas, incluye fechas y links si aplica):"""
 
             response = None
-            last_error = None
             for key, model in _llm_options:
                 try:
-                    current_llm = _create_llm(key, model)
-                    response = current_llm.invoke(prompt)
-                    print(f"[CHAIN] Respondió con modelo={model}")
+                    response = _create_llm(key, model).invoke(prompt)
+                    print(f"[CHAIN] ✅ Modelo: {model}")
                     break
                 except Exception as e:
                     err_str = str(e)
-                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str or "rate_limit" in err_str.lower():
-                        print(f"[CHAIN] Rate limit — probando siguiente...")
-                        last_error = e
+                    if "429" in err_str or "rate_limit" in err_str.lower() or "RESOURCE_EXHAUSTED" in err_str:
+                        print(f"[CHAIN] Rate limit — siguiente...")
                         continue
-                    else:
-                        raise
+                    raise
 
             if response is None:
-                return "El servicio de IA alcanzó su límite temporalmente. Intenta de nuevo en unos minutos."
+                return "El servicio de IA alcanzó su límite. Intenta en unos minutos."
 
             answer = fix_incomplete_answer(response.content)
+
+            # Agregar link al final si la respuesta no lo incluyó y aplica
+            if detected_cat == "estancia_profesional" and "siep.escom.ipn.mx" not in answer:
+                answer += "\n🔗 Sistema SIEP: https://siep.escom.ipn.mx"
+            elif detected_cat == "becas" and "sibec.ipn.mx" not in answer:
+                answer += "\n🔗 SIBec: https://www.sibec.ipn.mx"
+
             if not is_continuation(question):
                 _response_cache[cache_key] = answer
             return answer
 
         except Exception as e:
             import traceback
-            print(f"[ERROR DETALLADO]\n{traceback.format_exc()}")
+            print(f"[ERROR]\n{traceback.format_exc()}")
             return "Lo siento, hubo un error técnico al procesar la pregunta."
 
     return chain

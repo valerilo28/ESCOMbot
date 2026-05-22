@@ -1,38 +1,58 @@
-{
-  "profesores": {
-    "AGUILAR GARCIA RAFAEL": [
-      {"dia": "Lunes", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2207"},
-      {"dia": "Martes", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2209"},
-      {"dia": "Miércoles", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2209"},
-      {"dia": "Jueves", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2207"},
-      {"dia": "Viernes", "entrada": "07:00", "salida": "08:30", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2209"},
-      {"dia": "Viernes", "entrada": "08:30", "salida": "10:00", "materia": "PARADIGMAS DE PROGRAMACION", "salon": "2207"}
-    ],
-    "ALBORTANTE MORATO CECILIA": [
-      {"dia": "Lunes", "entrada": "07:00", "salida": "08:30", "materia": "TEORIA DE LA COMPUTACION", "salon": "2005"},
-      {"dia": "Lunes", "entrada": "08:30", "salida": "10:00", "materia": "TEORÍA DE LA COMPUTACIÓN", "salon": "3011"},
-      {"dia": "Lunes", "entrada": "10:30", "salida": "12:00", "materia": "ALGORITMOS Y ESTRUCTURA DE DATOS", "salon": "1013"},
-      {"dia": "Martes", "entrada": "07:00", "salida": "08:30", "materia": "FUNDAMENTOS DE PROGRAMACIÓN", "salon": "1203"},
-      {"dia": "Martes", "entrada": "08:30", "salida": "10:00", "materia": "ALGORITMOS Y ESTRUCTURA DE DATOS", "salon": "1013"},
-      {"dia": "Martes", "entrada": "10:30", "salida": "12:00", "materia": "ANALISIS Y DISEÑO DE ALGORITMOS", "salon": "2211"},
-      {"dia": "Miércoles", "entrada": "07:00", "salida": "08:30", "materia": "FUNDAMENTOS DE PROGRAMACIÓN", "salon": "1203"},
-      {"dia": "Miércoles", "entrada": "08:30", "salida": "10:00", "materia": "TEORÍA DE LA COMPUTACIÓN", "salon": "3011"},
-      {"dia": "Miércoles", "entrada": "10:30", "salida": "12:00", "materia": "ANALISIS Y DISEÑO DE ALGORITMOS", "salon": "2211"},
-      {"dia": "Jueves", "entrada": "07:00", "salida": "08:30", "materia": "TEORIA DE LA COMPUTACION", "salon": "2005"},
-      {"dia": "Jueves", "entrada": "08:30", "salida": "10:00", "materia": "TEORÍA DE LA COMPUTACIÓN", "salon": "3011"},
-      {"dia": "Jueves", "entrada": "10:30", "salida": "12:00", "materia": "ALGORITMOS Y ESTRUCTURA DE DATOS", "salon": "1013"},
-      {"dia": "Viernes", "entrada": "07:00", "salida": "08:30", "materia": "FUNDAMENTOS DE PROGRAMACIÓN", "salon": "1203"},
-      {"dia": "Viernes", "entrada": "08:30", "salida": "10:00", "materia": "TEORIA DE LA COMPUTACION", "salon": "2005"},
-      {"dia": "Viernes", "entrada": "10:30", "salida": "12:00", "materia": "ANALISIS Y DISEÑO DE ALGORITMOS", "salon": "2211"}
-    ],
-    "ORTIGOZA CAMPOS ANDRES": [
-      {"dia": "Lunes", "entrada": "08:30", "salida": "10:00", "materia": "COMPILADORES", "salon": "3108"},
-      {"dia": "Lunes", "entrada": "10:30", "salida": "12:00", "materia": "METODOS NUMERICOS", "salon": "2203"},
-      {"dia": "Martes", "entrada": "08:30", "salida": "10:00", "materia": "METODOS NUMERICOS", "salon": "2203"},
-      {"dia": "Miércoles", "entrada": "08:30", "salida": "10:00", "materia": "COMPILADORES", "salon": "3108"},
-      {"dia": "Miércoles", "entrada": "13:30", "salida": "15:00", "materia": "METODOS NUMERICOS", "salon": "2203"},
-      {"dia": "Jueves", "entrada": "08:30", "salida": "10:00", "materia": "COMPILADORES", "salon": "3108"},
-      {"dia": "Jueves", "entrada": "10:30", "salida": "12:00", "materia": "METODOS NUMERICOS", "salon": "2203"}
-    ]
-  }
-}
+"""
+Genera horarios.json desde el Excel horarios_v5.xlsx
+Uso: python generar_horarios.py
+Coloca este script en la raíz del proyecto (junto a rebuild_index.py)
+"""
+import openpyxl
+import json
+from pathlib import Path
+from collections import defaultdict
+
+EXCEL_PATH = Path(__file__).resolve().parent / "horarios_v5.xlsx"
+OUTPUT_PATH = Path(__file__).resolve().parent / "app" / "rag" / "horarios.json"
+
+def fmt_hora(t):
+    if t is None:
+        return "?"
+    if hasattr(t, 'strftime'):
+        return t.strftime("%H:%M")
+    return str(t).strip()
+
+def generar():
+    if not EXCEL_PATH.exists():
+        print(f"❌ No se encontró el Excel en: {EXCEL_PATH}")
+        print("   Asegúrate de que horarios_v5.xlsx esté en la raíz del proyecto.")
+        return
+
+    wb = openpyxl.load_workbook(str(EXCEL_PATH), read_only=True)
+    ws = wb['Horarios']
+
+    profesores = defaultdict(list)
+    total = 0
+
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row[0]:
+            continue
+        profesor, dia, entrada, salida, materia, salon = row
+        profesores[profesor.strip()].append({
+            "dia": str(dia).strip() if dia else "?",
+            "entrada": fmt_hora(entrada),
+            "salida": fmt_hora(salida),
+            "materia": str(materia).strip() if materia else "?",
+            "salon": str(salon).strip() if salon else "?"
+        })
+        total += 1
+
+    result = {"profesores": dict(profesores)}
+
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
+
+    print(f"✅ horarios.json generado")
+    print(f"   Profesores: {len(profesores)}")
+    print(f"   Registros:  {total}")
+    print(f"   Guardado en: {OUTPUT_PATH}")
+
+if __name__ == "__main__":
+    generar()

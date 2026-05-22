@@ -1,0 +1,108 @@
+{
+  "institucionales": {
+    "escom_oficial": {
+      "nombre": "Sitio oficial ESCOM",
+      "url": "https://www.escom.ipn.mx",
+      "descripcion": "Página principal de ESCOM"
+    },
+    "ipn_oficial": {
+      "nombre": "Sitio oficial IPN",
+      "url": "https://www.ipn.mx",
+      "descripcion": "Página principal del IPN"
+    },
+    "saes": {
+      "nombre": "SAES — Sistema de Administración Escolar",
+      "url": "https://www.saes.upiicsa.ipn.mx",
+      "descripcion": "Portal de trámites escolares, calificaciones, historial"
+    },
+    "correo_ipn": {
+      "nombre": "Correo institucional IPN",
+      "url": "https://outlook.office365.com",
+      "descripcion": "Correo @ipn.mx y @alumno.ipn.mx"
+    },
+    "biblioteca_ipn": {
+      "nombre": "Biblioteca Digital IPN",
+      "url": "https://www.bibliotecadigital.ipn.mx",
+      "descripcion": "Acceso a libros, revistas y recursos académicos"
+    },
+    "siase": {
+      "nombre": "SIASE — Sistema Integral de Administración Escolar",
+      "url": "https://siase.ipn.mx",
+      "descripcion": "Portal institucional del IPN"
+    }
+  },
+  "tramites": {
+    "servicio_social": {
+      "nombre": "Servicio Social ESCOM",
+      "url": "https://www.escom.ipn.mx/serviciosescolares/servicio-social.html",
+      "descripcion": "Información oficial sobre servicio social en ESCOM"
+    },
+    "estancia_profesional": {
+      "nombre": "Estancia Profesional ESCOM",
+      "url": "https://www.escom.ipn.mx/serviciosescolares/estancia-profesional.html",
+      "descripcion": "Información oficial sobre estancia profesional en ESCOM"
+    },
+    "becas_ipn": {
+      "nombre": "Becas IPN",
+      "url": "https://www.ipn.mx/becas",
+      "descripcion": "Portal de becas del IPN"
+    },
+    "becas_escom": {
+      "nombre": "Becas ESCOM",
+      "url": "https://www.escom.ipn.mx/serviciosescolares/becas.html",
+      "descripcion": "Información de becas en ESCOM"
+    },
+    "titulacion": {
+      "nombre": "Titulación ESCOM",
+      "url": "https://www.escom.ipn.mx/serviciosescolares/titulacion.html",
+      "descripcion": "Información sobre opciones de titulación"
+    },
+    "reinscripcion": {
+      "nombre": "Reinscripción IPN",
+      "url": "https://www.ipn.mx/reinscripcion",
+      "descripcion": "Portal de reinscripción semestral"
+    }
+  },
+  "apoyo_estudiantil": {
+    "cenapred": {
+      "nombre": "CENAPRED",
+      "url": "https://www.cenapred.unam.mx",
+      "descripcion": "Centro Nacional de Prevención de Desastres"
+    },
+    "tutoria_ipn": {
+      "nombre": "Tutoría IPN",
+      "url": "https://www.ipn.mx/tutoria",
+      "descripcion": "Programa de tutoría institucional"
+    },
+    "deae": {
+      "nombre": "DEAE — Desarrollo y Atención Estudiantil",
+      "url": "https://www.ipn.mx/deae",
+      "descripcion": "Apoyo estudiantil, psicológico y social"
+    },
+    "probetel": {
+      "nombre": "PROBETEL — Becas de excelencia",
+      "url": "https://becas.sep.gob.mx",
+      "descripcion": "Becas SEP para educación superior"
+    },
+    "conacyt": {
+      "nombre": "CONAHCYT — Becas nacionales",
+      "url": "https://conahcyt.mx/becas_posgrados",
+      "descripcion": "Becas de posgrado y apoyo a la investigación"
+    }
+  },
+  "keywords": {
+    "saes": ["saes", "calificaciones", "kardex", "historial académico", "reinscripción", "inscripción"],
+    "correo_ipn": ["correo", "email", "outlook", "correo institucional", "correo ipn", "correo alumno"],
+    "becas_escom": ["beca", "becas escom", "apoyo económico", "beca institucional"],
+    "becas_ipn": ["beca ipn", "becas ipn", "convocatoria beca"],
+    "servicio_social": ["servicio social", "link servicio", "página servicio social"],
+    "estancia_profesional": ["estancia", "estancia profesional", "link estancia"],
+    "escom_oficial": ["escom", "página escom", "sitio escom", "web escom"],
+    "ipn_oficial": ["ipn", "página ipn", "sitio ipn"],
+    "biblioteca_ipn": ["biblioteca", "libros digitales", "biblioteca digital"],
+    "titulacion": ["titulación", "titulacion", "tesis", "opciones de titulación"],
+    "reinscripcion": ["reinscripción", "reinscripcion", "inscripción", "inscribirse"],
+    "deae": ["psicológico", "apoyo psicológico", "deae", "tutoría", "tutoria"],
+    "conacyt": ["conacyt", "conahcyt", "beca posgrado", "maestría beca"]
+  }
+}
