@@ -6,63 +6,59 @@ from pydantic import BaseModel
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from contextlib import asynccontextmanager
 
-# --- DIRECTORIOS ---
-# main.py está en app/, su parent es la raíz del proyecto
-BASE_DIR = Path(__file__).resolve().parent        # → app/
-STATIC_PATH = BASE_DIR / "static"                 # → app/static/
-PDF_DIR = BASE_DIR / "data" / "pdfs"              # → app/data/pdfs/
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_PATH = BASE_DIR / "static"
+PDF_DIR = BASE_DIR / "data" / "pdfs"
 PDF_DIR.mkdir(parents=True, exist_ok=True)
 
-# --- SUPABASE (opcional) ---
 try:
     from app.storage.supabase_client import supabase
 except ImportError:
     supabase = None
 
-# --- VARIABLE GLOBAL ---
 chain = None
-startup_failed = False  # True si load_chain() retornó None
+chain_loading = False   # flag para saber si está en proceso
+chain_error = None      # guardar error de startup si ocurre
 
-# --- MODELOS ---
 class ChatRequest(BaseModel):
     question: str
     history: List[dict] = []
 
 class LoginRequest(BaseModel):
-    username: str  # correo o boleta
+    username: str
     password: str
 
-# --- STARTUP EN BACKGROUND ---
 async def _load_chain_background():
-    global chain
+    global chain, chain_loading, chain_error
+    chain_loading = True
+    chain_error = None
     try:
-        print("[STARTUP] Iniciando carga de chain...")
+        print("[STARTUP] Cargando chain...")
         import importlib
         mod = importlib.import_module("app.rag.chain")
-        load_chain = mod.load_chain
-
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, load_chain)
+        result = await loop.run_in_executor(None, mod.load_chain)
         if result is None:
-            print("[STARTUP] ❌ load_chain() retornó None.")
+            chain_error = "load_chain() retornó None"
+            print(f"[STARTUP] ❌ {chain_error}")
         else:
             chain = result
             print("[STARTUP] ✅ Chain lista.")
     except Exception:
         import traceback
-        print(f"[STARTUP ERROR]\n{traceback.format_exc()}")
+        chain_error = traceback.format_exc()
+        print(f"[STARTUP ERROR]\n{chain_error}")
+    finally:
+        chain_loading = False
 
-# --- LIFESPAN ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Usar ensure_future en lugar de create_task para mayor compatibilidad
     asyncio.ensure_future(_load_chain_background())
     yield
 
-# --- APP ---
 app = FastAPI(title="Chatbot ESCOM", lifespan=lifespan)
 
 app.add_middleware(
@@ -77,29 +73,23 @@ app.add_middleware(
 if STATIC_PATH.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_PATH)), name="static")
 
-# --- RUTAS ---
-
 @app.get("/health")
 async def health():
     return {
         "status": "ok",
         "chain_loaded": chain is not None,
+        "chain_loading": chain_loading,
+        "chain_error": chain_error,
         "groq_key": bool(os.getenv("GROQ_API_KEY")),
-        "hf_token": bool(os.getenv("HF_TOKEN"))
     }
 
 @app.post("/login")
 async def login(request: LoginRequest):
-    """Valida credenciales de administrador."""
     admin_users = os.getenv("ADMIN_USERS", "admin@escom.ipn.mx,2024630001").split(",")
     admin_password = os.getenv("ADMIN_PASSWORD", "escom2026")
-
     username = request.username.strip().lower()
-    valid_users = [u.strip().lower() for u in admin_users]
-
-    if username not in valid_users or request.password != admin_password:
+    if username not in [u.strip().lower() for u in admin_users] or request.password != admin_password:
         raise HTTPException(status_code=401, detail="Credenciales incorrectas.")
-
     return {"status": "ok", "message": "Acceso concedido."}
 
 @app.get("/upload", response_class=HTMLResponse)
@@ -117,35 +107,20 @@ async def upload_pdf(
     semester: str = Form(...),
     password: str = Form(...)
 ):
-    global chain
-
-    # Validar contraseña de administrador
-    admin_password = os.getenv("ADMIN_PASSWORD", "escom2026")
-    if password != admin_password:
+    if password != os.getenv("ADMIN_PASSWORD", "escom2026"):
         raise HTTPException(status_code=401, detail="Contraseña incorrecta.")
     try:
         content = await file.read()
         filename = f"{category}_{year}-{semester}_{file.filename.replace(' ', '_')}"
-
-        # 1. Guardar en disco primero
         file_path = PDF_DIR / filename
         with open(file_path, "wb") as f:
             f.write(content)
-
-        # 2. Subir a Supabase (no crítico — si falla, el PDF ya está en disco)
         try:
             from app.storage.supabase_client import get_supabase
-            client = get_supabase()
-            client.storage.from_("pdfs").upload(filename, content)
-            print(f"[SUPABASE] ✅ PDF subido: {filename}")
-        except Exception as e_supa:
-            print(f"[SUPABASE] ⚠️ No se pudo subir a Supabase: {e_supa}")
-
-        # 3. NO reconstruimos vectorstore en Render (OOM en free tier 512MB)
-        # El índice se reconstruye localmente con rebuild_index.py y se sube a Supabase
-        # Render descarga el índice actualizado en el próximo arranque
-
-        return {"message": f"✅ Archivo {filename} guardado. Reconstruye el índice localmente con rebuild_index.py y haz push para actualizar el chatbot."}
+            get_supabase().storage.from_("pdfs").upload(filename, content)
+        except Exception as e:
+            print(f"[SUPABASE] ⚠️ {e}")
+        return {"message": f"✅ {filename} guardado. Reconstruye el índice con rebuild_index.py y haz push."}
     except Exception as e:
         import traceback
         print(traceback.format_exc())
@@ -154,14 +129,29 @@ async def upload_pdf(
 @app.post("/chat")
 async def chat(request: ChatRequest):
     try:
+        # Esperar máx 60s (no 120s) con mensajes más claros
         waited = 0
-        while chain is None and waited < 120:
-            await asyncio.sleep(3)
-            waited += 3
-            print(f"[CHAT] Esperando chain... {waited}s")
+        max_wait = 60
+        while chain is None and waited < max_wait:
+            if not chain_loading and chain_error:
+                # El startup falló — no tiene caso seguir esperando
+                return JSONResponse(
+                    status_code=503,
+                    content={"answer": "El servidor tuvo un error al iniciar. Contacta al administrador.", "status": "error"}
+                )
+            await asyncio.sleep(2)
+            waited += 2
+            if waited % 10 == 0:
+                print(f"[CHAT] Esperando chain... {waited}s/{max_wait}s")
 
         if chain is None:
-            return {"answer": "El servidor tardó demasiado en iniciar. Intenta de nuevo.", "status": "error"}
+            return JSONResponse(
+                status_code=503,
+                content={
+                    "answer": "El servidor está iniciando, por favor recarga la página en unos segundos. 🔄",
+                    "status": "loading"
+                }
+            )
 
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
@@ -169,33 +159,38 @@ async def chat(request: ChatRequest):
         )
         return {"answer": response, "status": "ok"}
 
-    except Exception as e:
+    except Exception:
         import traceback
         print(f"[CHAT ERROR]\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Error procesando la pregunta")
 
 @app.post("/chat/temario")
 async def chat_temario(request: ChatRequest):
-    """Endpoint exclusivo para consultas de temarios y bibliografía."""
     try:
         waited = 0
-        while chain is None and waited < 120:
-            await asyncio.sleep(3)
-            waited += 3
-
+        while chain is None and waited < 60:
+            await asyncio.sleep(2)
+            waited += 2
         if chain is None:
-            return {"answer": "El servidor tardó demasiado en iniciar. Intenta de nuevo.", "status": "error"}
-
+            return {"answer": "El servidor está iniciando. Recarga en unos segundos. 🔄", "status": "loading"}
         loop = asyncio.get_event_loop()
         response = await loop.run_in_executor(
             None, lambda: chain(request.question, request.history, force_category="temario")
         )
         return {"answer": response, "status": "ok"}
-
-    except Exception as e:
+    except Exception:
         import traceback
         print(f"[CHAT/TEMARIO ERROR]\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Error procesando la pregunta")
+
+@app.get("/status")
+async def status():
+    """Endpoint liviano para que el frontend sepa si la chain ya está lista."""
+    return {
+        "ready": chain is not None,
+        "loading": chain_loading,
+        "error": chain_error is not None
+    }
 
 @app.get("/suggestions")
 async def get_suggestions():
@@ -204,6 +199,6 @@ async def get_suggestions():
             "¿Cómo solicito una beca?",
             "Requisitos para servicio social",
             "¿Qué bibliografía tiene Cálculo Diferencial?",
-            "¿Cómo contacto a Gestión Escolar?"
+            "¿Qué es estancia profesional?"
         ]
     }
